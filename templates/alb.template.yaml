@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >-
-  This template creates an Application Load Balancer
+  This template creates an Application Load Balancer (qs-1r2g4122s)
 Parameters:
   VPCID:
     Type: 'AWS::EC2::VPC::Id'

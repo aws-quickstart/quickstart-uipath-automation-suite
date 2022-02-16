@@ -28,6 +28,8 @@ def create(properties, physical_id):
     add_gpu = properties['AddGpu']
     server_instance_count = int(properties['ServerInstanceCount'])
     agent_instance_count = int(properties['AgentInstanceCount'])
+    private_subnet_ids = properties['PrivateSubnetIDs']
+    extra_dict_keys = properties['ExtraConfigKeys']
 
     initial_number_of_instances = server_instance_count + agent_instance_count
 
@@ -38,6 +40,11 @@ def create(properties, physical_id):
         ret['multinode'] = 'true'
         ret['ha'] = 'true'
         ret['profile'] = 'ha'
+        subnet_list = private_subnet_ids.split(',')
+        if len(subnet_list) >= 3:
+            ret['zone_resilience'] = True
+        else:
+            ret['zone_resilience'] = False
     else:
         ret['multinode'] = 'false'
         ret['ha'] = 'false'
@@ -84,6 +91,17 @@ def create(properties, physical_id):
     ret["identity_certificate"]["token_signing_cert_file"] = "/root/token_signing_certificate.pfx"
     ret["identity_certificate"]["token_signing_cert_pass"] = ""
     ret["identity_certificate"]["ldap_cert_authority_file"] = ""
+
+    if extra_dict_keys:
+        try:
+            extra_dict_json = json.loads(extra_dict_keys)
+            print(json.dumps(extra_dict_json))
+        except Exception as e:
+            print("Failed to load the extra configuration dictionary")
+            raise e
+
+        if extra_dict_json:
+            ret.update(extra_dict_json)
 
     print("Getting RDS secret")
     db_secret = sm.get_secret_value(
@@ -197,6 +215,8 @@ def update(properties, physical_id):
     add_gpu = properties['AddGpu']
     server_instance_count = int(properties['ServerInstanceCount'])
     agent_instance_count = int(properties['AgentInstanceCount'])
+    private_subnet_ids = properties['PrivateSubnetIDs']
+    extra_dict_keys = properties['ExtraConfigKeys']
 
     initial_number_of_instances = server_instance_count + agent_instance_count
 
@@ -207,6 +227,11 @@ def update(properties, physical_id):
         ret['multinode'] = 'true'
         ret['ha'] = 'true'
         ret['profile'] = 'ha'
+        subnet_list = private_subnet_ids.split(',')
+        if len(subnet_list) >= 3:
+            ret['zone_resilience'] = True
+        else:
+            ret['zone_resilience'] = False
     else:
         ret['multinode'] = 'false'
         ret['ha'] = 'false'
@@ -253,6 +278,17 @@ def update(properties, physical_id):
     ret["identity_certificate"]["token_signing_cert_file"] = "/root/token_signing_certificate.pfx"
     ret["identity_certificate"]["token_signing_cert_pass"] = ""
     ret["identity_certificate"]["ldap_cert_authority_file"] = ""
+
+    if extra_dict_keys:
+        try:
+            extra_dict_json = json.loads(extra_dict_keys)
+            print(json.dumps(extra_dict_json))
+        except Exception as e:
+            print("Failed to load the extra configuration dictionary")
+            raise e
+
+        if extra_dict_json:
+            ret.update(extra_dict_json)
 
     print("Getting RDS secret")
     db_secret = sm.get_secret_value(

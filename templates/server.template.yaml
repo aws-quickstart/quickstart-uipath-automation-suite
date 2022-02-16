@@ -24,6 +24,7 @@ Parameters:
   KeyPairName:
     Description: EC2 Instance Key pair name
     Type: String
+    Default: ""
   AmiId:
     Description: AMI id for the cluster EC2 instances
     Type: String
@@ -85,6 +86,14 @@ Parameters:
   FindAMIFunctionArn:
     Description: ARN for Lambda function used to find AMI by name
     Type: String
+  IamRoleArn:
+    Description: ARN of a pre-deployed IAM Role with sufficient permissions for the deployment. Leave empty to create the role
+    Type: String
+    Default: ''
+  IamRoleName:
+    Description: Name of a pre-deployed IAM Role with sufficient permissions for the deployment. Leave empty to create the role
+    Type: String
+    Default: ''
   QSS3BucketName:
     Type: String
     Description: Name of bucket storing the quickstart files
@@ -126,6 +135,10 @@ Conditions:
   DeployingBastion: !And
     - !Equals [!Ref DeployBastion, 'true']
     - !Condition UsingPublicSubnets
+  HasKeyName: !Not [!Equals [!Ref KeyPairName, ""]]
+  DeployIam: !Or
+    - !Equals ["", !Ref IamRoleArn]
+    - !Equals ["", !Ref IamRoleName]
 Resources:
   ServiceFabricSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
@@ -198,6 +211,7 @@ Resources:
 
   ServiceFabricIamRole:
     Type: 'AWS::IAM::Role'
+    Condition: DeployIam
     Properties:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
@@ -213,32 +227,70 @@ Resources:
     Type: 'AWS::IAM::InstanceProfile'
     Properties:
       Roles:
-        - !Ref ServiceFabricIamRole
+        - !If [DeployIam, !Ref ServiceFabricIamRole, !Ref IamRoleName]
       Path: '/'
   LogsAccessPolicy:
     Type: 'AWS::IAM::Policy'
+    Condition: DeployIam
     Properties:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
           - Action:
-              - cloudwatch:PutMetricData
-              - ec2:DescribeVolumes
-              - ec2:DescribeTags
-              - autoscaling:DescribeAutoScalingInstances
-              - autoscaling:DescribeAutoScalingGroups
               - logs:PutLogEvents
               - logs:DescribeLogStreams
               - logs:DescribeLogGroups
               - logs:CreateLogStream
               - logs:CreateLogGroup
-            Resource: "*"
+            Resource:
+              - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*"
             Effect: Allow
+          - Action:
+              - cloudwatch:PutMetricData
+            Resource:
+              - !Sub "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}::*"
+            Effect: Allow
+          - Action:
+              - "xray:PutTraceSegments"
+            Effect: "Allow"
+            Resource:
+              - !Sub "arn:${AWS::Partition}:xray:${AWS::Region}:${AWS::AccountId}:*"
       PolicyName: CloudwatchLogsAccess
+      Roles:
+        - !Ref ServiceFabricIamRole
+  Ec2QueryPolicy:
+    Type: 'AWS::IAM::Policy'
+    Condition: DeployIam
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - ec2:DescribeVolumes
+              - ec2:DescribeTags
+              - ec2:DescribeInstances
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:*"
+            Effect: Allow
+          - Action:
+              - autoscaling:DescribeAutoScalingInstances
+              - autoscaling:DescribeAutoScalingGroups
+            Resource:
+              - "*"
+            Effect: Allow
+          - Action:
+              - ec2:DescribeImages
+              - ec2:DescribeInstanceTypes
+              - ec2:DescribeInstanceTypeOfferings
+            Resource:
+              - "*"
+            Effect: Allow
+      PolicyName: Ec2QueryPolicy
       Roles:
         - !Ref ServiceFabricIamRole
   QuickstartS3IAMPolicy:
     Type: 'AWS::IAM::Policy'
+    Condition: DeployIam
     Properties:
       PolicyDocument:
         Version: '2012-10-17'
@@ -254,12 +306,14 @@ Resources:
         - !Ref ServiceFabricIamRole
   InputJsonSecretPolicy:
     Type: 'AWS::IAM::Policy'
+    Condition: DeployIam
     Properties:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
           - Action:
-              - '*'
+              - "secretsmanager:GetSecretValue"
+              - "secretsmanager:PutSecretValue"
             Resource:
               - !Ref InputJsonSecretArn
             Effect: Allow
@@ -268,12 +322,14 @@ Resources:
         - !Ref ServiceFabricIamRole
   KubeconfigSecretPolicy:
     Type: 'AWS::IAM::Policy'
+    Condition: DeployIam
     Properties:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
           - Action:
-              - '*'
+              - "secretsmanager:GetSecretValue"
+              - "secretsmanager:PutSecretValue"
             Resource:
               - !Ref KubeconfigSecretArn
             Effect: Allow
@@ -286,7 +342,7 @@ Resources:
       AWS::CloudFormation::Authentication:
         S3AccessCreds:
           type: S3
-          roleName: !Ref ServiceFabricIamRole
+          roleName: !If [DeployIam, !Ref ServiceFabricIamRole, !Ref IamRoleName]
           buckets: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       AWS::CloudFormation::Init:
         configSets:
@@ -450,7 +506,7 @@ Resources:
       ImageId: !If [FindingAmiAtDeploy, !GetAtt InstanceAMI.ImageId, !Ref AmiId]
       IamInstanceProfile: !GetAtt ServiceFabricInstanceProfile.Arn
       InstanceType: !Ref InstanceType
-      KeyName: !Ref KeyPairName
+      KeyName: !If [HasKeyName, !Ref KeyPairName, !Ref "AWS::NoValue"]
       PlacementTenancy: default
       SecurityGroups:
         - !Ref ServiceFabricSecurityGroup
@@ -481,7 +537,7 @@ Resources:
       AWS::CloudFormation::Authentication:
         S3AccessCreds:
           type: S3
-          roleName: !Ref ServiceFabricIamRole
+          roleName: !If [DeployIam, !Ref ServiceFabricIamRole, !Ref IamRoleName]
           buckets: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       AWS::CloudFormation::Init:
         configSets:
@@ -622,7 +678,7 @@ Resources:
       ImageId: !If [FindingAmiAtDeploy, !GetAtt InstanceAMI.ImageId, !Ref AmiId]
       IamInstanceProfile: !GetAtt ServiceFabricInstanceProfile.Arn
       InstanceType: !Ref InstanceType
-      KeyName: !Ref KeyPairName
+      KeyName: !If [HasKeyName, !Ref KeyPairName, !Ref "AWS::NoValue"]
       PlacementTenancy: default
       SecurityGroups:
         - !Ref ServiceFabricSecurityGroup
@@ -716,6 +772,53 @@ Resources:
           ToPort: 22
           CidrIp: 0.0.0.0/0
 
+  AsgProcessModificationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+      Policies:
+        - PolicyName: AsgProcessModification
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - autoscaling:ResumeProcesses
+              - autoscaling:SuspendProcesses
+              Resource: !Sub arn:${AWS::Partition}:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${ServerAutoScalingGroup}
+            - Effect: Allow
+              Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*
+
+  AsgProcessModifierFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Modifies ASG processes during CF stack creation
+      Code:
+        S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/PatchAsg/lambda.zip'
+      Handler: lambda_function.handler
+      Role: !If [DeployIam, !GetAtt AsgProcessModificationRole.Arn, !Ref IamRoleArn]
+      Runtime: python3.6
+
+  ModifyAsg:
+    Type: 'Custom::ModifyAsg'
+    Properties:
+      ServiceToken: !GetAtt AsgProcessModifierFunction.Arn
+      AutoScalingGroupName: !Ref ServerAutoScalingGroup
+      RegionName: !Ref 'AWS::Region'
+
   BastionHost:
     Type: 'AWS::EC2::Instance'
     Condition: DeployingBastion
@@ -723,7 +826,7 @@ Resources:
       AWS::CloudFormation::Authentication:
         S3AccessCreds:
           type: S3
-          roleName: !Ref ServiceFabricIamRole
+          roleName: !If [DeployIam, !Ref ServiceFabricIamRole, !Ref IamRoleName]
           buckets: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       AWS::CloudFormation::Init:
         configSets:
@@ -758,12 +861,12 @@ Resources:
                           {
                             "file_path": "/var/log/cfn-init.log",
                             "log_group_name": "/aws/ec2/${AWS::StackName}/{instance_id}",
+                            "log_stream_name": "cfn-init"
                           },
                           {
                             "file_path": "/var/log/cfn-init-cmd.log",
                             "log_group_name": "/aws/ec2/${AWS::StackName}/{instance_id}",
                             "log_stream_name": "cfn-init-cmd"
-                            "log_stream_name": "cfn-init"
                           }
                         ]
                       }
@@ -785,7 +888,7 @@ Resources:
       IamInstanceProfile: !Ref ServiceFabricInstanceProfile
       ImageId: !If [FindingAmiAtDeploy, !GetAtt InstanceAMI.ImageId, !Ref AmiId]
       InstanceType: "t3.large"
-      KeyName: !Ref KeyPairName
+      KeyName: !If [HasKeyName, !Ref KeyPairName, !Ref "AWS::NoValue"]
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:
@@ -831,7 +934,7 @@ Resources:
       AWS::CloudFormation::Authentication:
         S3AccessCreds:
           type: S3
-          roleName: !Ref ServiceFabricIamRole
+          roleName: !If [DeployIam, !Ref ServiceFabricIamRole, !Ref IamRoleName]
           buckets: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       AWS::CloudFormation::Init:
         configSets:
@@ -969,7 +1072,7 @@ Resources:
       IamInstanceProfile: !Ref ServiceFabricInstanceProfile
       ImageId: !If [FindingAmiAtDeploy, !GetAtt InstanceAMI.ImageId, !Ref AmiId]
       InstanceType: !Ref TmInstanceType
-      KeyName: !Ref KeyPairName
+      KeyName: !If [HasKeyName, !Ref KeyPairName, !Ref "AWS::NoValue"]
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:
@@ -1021,7 +1124,7 @@ Resources:
       AWS::CloudFormation::Authentication:
         S3AccessCreds:
           type: S3
-          roleName: !Ref ServiceFabricIamRole
+          roleName: !If [DeployIam, !Ref ServiceFabricIamRole, !Ref IamRoleName]
           buckets: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       AWS::CloudFormation::Init:
         configSets:
@@ -1216,7 +1319,7 @@ Resources:
       IamInstanceProfile: !Ref ServiceFabricInstanceProfile
       ImageId: !If [FindingAmiAtDeploy, !GetAtt GpuInstanceAMI.ImageId, !Ref AmiId]
       InstanceType: !Ref GpuInstanceType
-      KeyName: !Ref KeyPairName
+      KeyName: !If [HasKeyName, !Ref KeyPairName, !Ref "AWS::NoValue"]
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:

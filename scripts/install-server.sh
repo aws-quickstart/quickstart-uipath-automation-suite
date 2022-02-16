@@ -59,7 +59,7 @@ function check_registration() {
 }
 
 function main() {
-  export NODE_TYPE="FIRST_SERVER"
+  NODE_TYPE="FIRST_SERVER"
   local registration_url
   local no_of_nodes_actual
   local no_of_nodes_required

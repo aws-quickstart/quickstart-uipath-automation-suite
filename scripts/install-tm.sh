@@ -4,7 +4,6 @@ set -eux
 export PATH=$PATH:/var/lib/rancher/rke2/bin:/root/installer/bin:/usr/local/bin
 
 function main() {
-  export NODE_TYPE="FIRST_SERVER"
   local registration_url
 
   registration_url="$(jq -r ".fixed_rke_address" <"/root/installer/input.json")"

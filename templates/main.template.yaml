@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: >-
   This template creates a Multi-AZ, multi-subnet VPC infrastructure with UIPath
   Automation Suite deployed in private subnets, with a Load Balancer behind Route 53 in
-  public subnets.
+  public subnets. (qs-1r2g4122s)
 Metadata:
   QuickStartDocumentation:
     EntrypointName: Launch into a new VPC
@@ -97,10 +97,9 @@ Parameters:
   UiPathVersion:
     Description: UiPath version to install
     Type: String
-    Default: '2021.10.1'
+    Default: '2021.10.3'
     AllowedValues:
-      - '2021.10.0'
-      - '2021.10.1'
+      - '2021.10.3'
   ServiceProfile:
     Description: >-
       Choose Default platform to install Orchestrator, Action Center, Test Manager, Insights, Automation Hub, Automation Ops.

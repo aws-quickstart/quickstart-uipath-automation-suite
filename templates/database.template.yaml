@@ -12,6 +12,13 @@ Parameters:
   RDSPasswordSecretArn:
     Description: RDS DB password secret ARN
     Type: String
+  MultiAZ:
+    Description: RDS instance deployment multi AZ availability
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
   RDSEngine:
     Type: String
     Description: RDS MS SQL engine
@@ -28,6 +35,12 @@ Parameters:
       - "15.00"
       - "14.00"
       - "13.00"
+  KmsKeyId:
+    Type: String
+    Default: ""
+    Description: KMS key id to use for database storage encryption
+Conditions:
+  UsingKmsKeyId: !Not [!Equals [!Ref KmsKeyId, '']]
 Resources:
   DbSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
@@ -49,15 +62,18 @@ Resources:
     Properties:
       AllocatedStorage: '256'
       MaxAllocatedStorage: 1000
-#      BackupRetentionPeriod: 5
+      BackupRetentionPeriod: 5
       DBInstanceClass: db.m5.2xlarge
       DBSubnetGroupName: !Ref DBSubnetGroup
       Engine: !Ref RDSEngine
       EngineVersion: !Ref RDSVersion
+      PubliclyAccessible: false
+      StorageEncrypted: !If [UsingKmsKeyId, true, false]
+      KmsKeyId: !If [UsingKmsKeyId, !Ref KmsKeyId, !Ref "AWS::NoValue"]
       LicenseModel: license-included
       MasterUsername: !Sub '{{resolve:secretsmanager:${RDSPasswordSecretArn}:SecretString:username}}'
       MasterUserPassword: !Sub '{{resolve:secretsmanager:${RDSPasswordSecretArn}:SecretString:password}}'
-      MultiAZ: false
+      MultiAZ: !Ref MultiAZ
       StorageType: gp2
       VPCSecurityGroups:
         - !Ref DbSecurityGroup

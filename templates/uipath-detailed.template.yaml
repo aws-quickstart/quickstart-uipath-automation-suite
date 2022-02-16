@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: >-
   This template creates a Multi-AZ, multi-subnet VPC infrastructure with UIPath
   Automation Suite deployed in private subnets, with a Load Balancer behind Route 53 in
-  public subnets.
+  public subnets. (qs-1r2g4122s)
 Metadata:
   QuickStartDocumentation:
     EntrypointName: Launch into a new VPC
@@ -14,16 +14,23 @@ Metadata:
         Parameters:
           - AvailabilityZones
           - NumberOfAZs
+          - DeployBastion
       - Label:
           default: Automation Suite instance configuration
         Parameters:
           - KeyPairName
+          - AmiId
+          - IamRoleArn
+          - IamRoleName
       - Label:
           default: Automation Suite deployment configuration
         Parameters:
           - MultiNode
           - UseLevel7LoadBalancer
           - UiPathVersion
+          - InstallerDownloadUrl
+          - AddGpu
+          - ExtraConfigKeys
       - Label:
           default: Automation Suite services
         Parameters:
@@ -36,17 +43,19 @@ Metadata:
           - BusinessApps
           - DocumentUnderstanding
           - TaskMining
-          - AddGpu
       - Label:
           default: DNS or SSL configuration
         Parameters:
           - UiPathFQDN
           - HostedZoneID
+          - AcmCertificateArn
+          - UseInternalLoadBalancer
       - Label:
           default: RDS configuration
         Parameters:
           - RDSEngine
           - RDSVersion
+          - DatabaseKmsKeyId
       - Label:
           default: Quick Start S3 bucket configuration
         Parameters:
@@ -58,14 +67,26 @@ Metadata:
         default: Availability Zones
       NumberOfAZs:
         default: Number of Availability Zones
+      DeployBastion:
+        default: Deploy Bastion host
       KeyPairName:
         default: Instance key pair
+      AmiId:
+        default: Instance AMI id
+      IamRoleArn:
+        default: IAM Role ARN
+      IamRoleName:
+        default: IAM Role name
       MultiNode:
         default: Deployment type
       UseLevel7LoadBalancer:
         default: Load Balancer
       UiPathVersion:
         default: Automation Suite version
+      InstallerDownloadUrl:
+        default: Installer download URL
+      ExtraConfigKeys:
+        default: Extra configuration keys
       ActionCenter:
         default: Action Center
       AutomationHub:
@@ -90,10 +111,16 @@ Metadata:
         default: Hosting FQDN
       HostedZoneID:
         default: ID of Route 53 hosted zone
+      UseInternalLoadBalancer:
+        default: Use Internal Load Balancer
       RDSEngine:
         default: Engine of SQL Server deployed on RDS
       RDSVersion:
-        default: Verions of SQL Server deployed on RDS
+        default: Version of SQL Server deployed on RDS
+      DatabaseKmsKeyId:
+        default: KMS Key Id used to encrypt RDS storage
+      AcmCertificateArn:
+        default: ARN of the ACM hosted certificate to use
       QSS3BucketName:
         default: Template-hosting S3 bucket
       QSS3KeyPrefix:
@@ -116,6 +143,20 @@ Parameters:
   KeyPairName:
     Description: Existing key pair to connect to virtual machine (VM) instances.
     Type: 'AWS::EC2::KeyPair::KeyName'
+  AmiId:
+    Description: |
+      Enter the AMI Id to be used for the creation of the EC2 instances of the cluster.
+      Leave empty to determine automatically the AMI to use.
+    Type: String
+    Default: ''
+  IamRoleArn:
+    Description: ARN of a pre-deployed IAM Role with sufficient permissions for the deployment. Leave empty to create the role
+    Type: String
+    Default: ''
+  IamRoleName:
+    Description: Name of a pre-deployed IAM Role with sufficient permissions for the deployment. Leave empty to create the role
+    Type: String
+    Default: ''
   MultiNode:
     Description: Install Automation Suite on a Single Node (recommended for evaluation/dev purposes) or Multi-node (recommended for production purposes)
     Type: String
@@ -133,10 +174,17 @@ Parameters:
   UiPathVersion:
     Description: UiPath version to install
     Type: String
-    Default: '2021.10.1'
+    Default: '2021.10.3'
     AllowedValues:
-      - '2021.10.0'
-      - '2021.10.1'
+      - '2021.10.3'
+  InstallerDownloadUrl:
+    Description: Custom URL for installer download. Leave empty to use the UiPathVersion, provide an URL to override the download location.
+    Type: String
+    Default: ""
+  ExtraConfigKeys:
+    Description: Extra configuration keys to add to the cluster config. Leave empty to use default config.
+    Type: String
+    Default: ""
   ActionCenter:
     Description: Choose false to disable Action Center installation.
     Type: String
@@ -219,6 +267,28 @@ Parameters:
     AllowedPattern: '(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-]{0,62}[a-zA-Z0-9]\.)+[a-zA-Z]{2,63}$)'
     ConstraintDescription: >-
       Fully qualified domain names can include numbers, lowercase letters, uppercase letters and hyphens (-).
+  AcmCertificateArn:
+    Description: |
+      ARN of certificate present in the ACM (Amazon Certificate Manager) to use with the ALB.
+      Leave empty to create the public certificate during deployment.
+    Type: String
+    Default: ""
+  UseInternalLoadBalancer:
+    Description: Deploy Internal Load Balancer
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - 'true'
+      - 'false'
+  DeployBastion:
+    Description: |
+      Deploy a bastion host inside the public subnet.
+      Choose false to skip deploying the Bastion.
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - 'true'
+      - 'false'
   RDSEngine:
     Type: String
     Description: RDS MS SQL engine
@@ -235,6 +305,10 @@ Parameters:
       - "15.00"
       - "14.00"
       - "13.00"
+  DatabaseKmsKeyId:
+    Type: String
+    Default: ""
+    Description: KMS Key Id to use for the encryption of the RDS storage. Leave empty to not encrypt the RDS storage
   QSS3BucketName:
     AllowedPattern: '^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$'
     ConstraintDescription: >-
@@ -320,6 +394,7 @@ Resources:
         UseLevel7LoadBalancer: !Ref UseLevel7LoadBalancer
         PerformInstallation: "true"
         AddGpu: !Ref AddGpu
+        ExtraConfigKeys: !Ref ExtraConfigKeys
         UiPathFQDN: !Ref UiPathFQDN
         ActionCenter: !Ref ActionCenter
         AutomationHub: !Ref AutomationHub
@@ -334,9 +409,17 @@ Resources:
         QSS3BucketName: !Ref QSS3BucketName
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         QSS3BucketRegion: !Ref QSS3BucketRegion
+        InstallerDownloadUrl: !Ref InstallerDownloadUrl
         UiPathVersion: !Ref UiPathVersion
         RDSEngine: !Ref RDSEngine
         RDSVersion: !Ref RDSVersion
+        AmiId: !Ref AmiId
+        AcmCertificateArn: !Ref AcmCertificateArn
+        UseInternalLoadBalancer: !Ref UseInternalLoadBalancer
+        DatabaseKmsKeyId: !Ref DatabaseKmsKeyId
+        DeployBastion: !Ref DeployBastion
+        IamRoleArn: !Ref IamRoleArn
+        IamRoleName: !Ref IamRoleName
 
 Outputs:
   InterfaceTour:

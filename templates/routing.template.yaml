@@ -19,7 +19,8 @@ Parameters:
     Type: String
   HostedZoneID:
     Description: The Route 53 hosted zone Id
-    Type: AWS::Route53::HostedZone::Id
+    Type: "String"
+    Default: ''
   SSLCertificateArn:
     Description: Arn of SSL certificate to use for the HTTPS listener
     Type: String
@@ -58,6 +59,10 @@ Conditions:
   UsingInternalLoadBalancer: !Or
     - !Equals [!Ref UseInternalLoadBalancer, 'true']
     - !Condition NotUsingPublicSubnets
+  CreatingDnsRecords: !Not [!Equals [!Ref HostedZoneID, '']]
+  NotCreatingDnsRecords: !Not [!Condition CreatingDnsRecords]
+  NotCreatingDnsRecords&&UsingNlb: !And [!Condition NotCreatingDnsRecords, !Condition UsingNlb]
+  NotCreatingDnsRecords&&UsingAlb: !And [!Condition NotCreatingDnsRecords, !Condition UsingAlb]
 Resources:
   AlbStack:
     Type: 'AWS::CloudFormation::Stack'
@@ -157,6 +162,7 @@ Resources:
 
   RootRecordSet:
     Type: 'AWS::Route53::RecordSet'
+    Condition: CreatingDnsRecords
     Properties:
       HostedZoneId: !Ref HostedZoneID
       Name: !Join
@@ -184,6 +190,7 @@ Resources:
             - Outputs.CanonicalHostedZoneID
   SubdomainRecordSet:
     Type: 'AWS::Route53::RecordSet'
+    Condition: CreatingDnsRecords
     Properties:
       HostedZoneId: !Ref HostedZoneID
       Name: !Ref Fqdn
@@ -206,6 +213,24 @@ Resources:
           - !GetAtt
             - NlbStack
             - Outputs.CanonicalHostedZoneID
+
+  NlbWaitHandle:
+    DependsOn: NlbStack
+    Condition: NotCreatingDnsRecords&&UsingNlb
+    Type: "AWS::CloudFormation::WaitConditionHandle"
+  AlbWaitHandle:
+    DependsOn: AlbStack
+    Condition: NotCreatingDnsRecords&&UsingAlb
+    Type: "AWS::CloudFormation::WaitConditionHandle"
+
+  DnsRecordsWaitCondition:
+    Type: "AWS::CloudFormation::WaitCondition"
+    Condition: NotCreatingDnsRecords
+    Properties:
+      Handle: !If [UsingNlb, !Ref NlbWaitHandle , !Ref AlbWaitHandle]
+      Timeout: "43200"
+      Count: 1
+
 Outputs:
   DeploymentTargetGroupArn:
     Value: !If

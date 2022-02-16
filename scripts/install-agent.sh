@@ -5,7 +5,6 @@ export PATH=$PATH:/var/lib/rancher/rke2/bin:/root/installer/bin:/usr/local/bin
 export KUBECONFIG="/etc/rancher/rke2/rke2.yaml"
 
 function main() {
-  export NODE_TYPE="FIRST_SERVER"
   local registration_url
 
   registration_url="$(jq -r ".fixed_rke_address" <"/root/installer/input.json")"

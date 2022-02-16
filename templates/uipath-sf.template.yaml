@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: >-
   This template creates a Multi-AZ, multi-subnet VPC infrastructure with UIPath
   Automation Suite deployed in private subnets, with a Load Balancer behind Route 53 in
-  public subnets.
+  public subnets. (qs-1r2g4122s)
 Metadata:
   QuickStartDocumentation:
     EntrypointName: Launch into a new VPC
@@ -16,11 +16,14 @@ Metadata:
           - VPCID
           - PublicSubnetIDs
           - PrivateSubnetIDs
+          - DeployBastion
       - Label:
           default: Automation Suite instance configuration
         Parameters:
           - KeyPairName
           - AmiId
+          - IamRoleArn
+          - IamRoleName
       - Label:
           default: Automation Suite deployment configuration
         Parameters:
@@ -28,6 +31,9 @@ Metadata:
           - UseLevel7LoadBalancer
           - PerformInstallation
           - UiPathVersion
+          - InstallerDownloadUrl
+          - AddGpu
+          - ExtraConfigKeys
       - Label:
           default: Automation Suite services
         Parameters:
@@ -40,7 +46,6 @@ Metadata:
           - BusinessApps
           - DocumentUnderstanding
           - TaskMining
-          - AddGpu
       - Label:
           default: DNS or SSL configuration
         Parameters:
@@ -53,6 +58,7 @@ Metadata:
         Parameters:
           - RDSEngine
           - RDSVersion
+          - DatabaseKmsKeyId
       - Label:
           default: Quick Start S3 bucket configuration
         Parameters:
@@ -68,16 +74,28 @@ Metadata:
         default: Public Subnets IDs
       PrivateSubnetIDs:
         default: Private Subnets IDs
+      DeployBastion:
+        default: Deploy Bastion host
       KeyPairName:
         default: Instance key pair
       AmiId:
         default: Instance AMI id
+      IamRoleArn:
+        default: IAM Role ARN
+      IamRoleName:
+        default: IAM Role name
       MultiNode:
         default: Deployment type
       UseLevel7LoadBalancer:
         default: Load Balancer
+      PerformInstallation:
+        default: Perform Installation
       UiPathVersion:
         default: Automation Suite version
+      InstallerDownloadUrl:
+        default: Installer download URL
+      ExtraConfigKeys:
+        default: Extra configuration keys
       ActionCenter:
         default: Action Center
       AutomationHub:
@@ -107,7 +125,9 @@ Metadata:
       RDSEngine:
         default: Engine of SQL Server deployed on RDS
       RDSVersion:
-        default: Verions of SQL Server deployed on RDS
+        default: Version of SQL Server deployed on RDS
+      DatabaseKmsKeyId:
+        default: KMS Key Id used to encrypt RDS storage
       AcmCertificateArn:
         default: ARN of the ACM hosted certificate to use
       QSS3BucketName:
@@ -127,7 +147,9 @@ Parameters:
     Type: 'AWS::EC2::VPC::Id'
     Description: VPC ID
   PublicSubnetIDs:
-    Description: List of public subnet IDs.
+    Description: |
+      List of public subnet IDs to deploy the internet-facing Load Balancer and the Bastion host.
+      Leave empty to deploy internal Load Balancer and skip the deployment of the Bastion host.
     Type: CommaDelimitedList
     Default: ''
   PrivateSubnetIDs:
@@ -137,7 +159,17 @@ Parameters:
     Description: Existing key pair to connect to virtual machine (VM) instances.
     Type: 'AWS::EC2::KeyPair::KeyName'
   AmiId:
-    Description: AMI id for the cluster EC2 instances
+    Description: |
+      Enter the AMI Id to be used for the creation of the EC2 instances of the cluster.
+      Leave empty to determine automatically the AMI to use.
+    Type: String
+    Default: ''
+  IamRoleArn:
+    Description: ARN of a pre-deployed IAM Role with sufficient permissions for the deployment. Leave empty to create the role
+    Type: String
+    Default: ''
+  IamRoleName:
+    Description: Name of a pre-deployed IAM Role with sufficient permissions for the deployment. Leave empty to create the role
     Type: String
     Default: ''
   MultiNode:
@@ -155,7 +187,9 @@ Parameters:
       - 'ALB'
       - 'NLB'
   PerformInstallation:
-    Description: Perform the Service Fabric installation
+    Description: |
+      Perform the Automation Suite installation.
+      Choose false to perform only infrastructure provisioning and configuration.
     Type: String
     Default: 'true'
     AllowedValues:
@@ -164,10 +198,17 @@ Parameters:
   UiPathVersion:
     Description: UiPath version to install
     Type: String
-    Default: '2021.10.1'
+    Default: '2021.10.3'
     AllowedValues:
-      - '2021.10.0'
-      - '2021.10.1'
+      - '2021.10.3'
+  InstallerDownloadUrl:
+    Description: Custom URL for installer download. Leave empty to use the UiPathVersion, provide an URL to override the version.
+    Type: String
+    Default: ""
+  ExtraConfigKeys:
+    Description: Extra configuration keys to add to the cluster config. Leave empty to use default config.
+    Type: String
+    Default: ""
   ActionCenter:
     Description: Choose false to disable Action Center installation.
     Type: String
@@ -251,7 +292,9 @@ Parameters:
     ConstraintDescription: >-
       Fully qualified domain names can include numbers, lowercase letters, uppercase letters and hyphens (-).
   AcmCertificateArn:
-    Description: ARN of certificate to use with the ALB
+    Description: |
+      ARN of certificate present in the ACM (Amazon Certificate Manager) to use with the ALB.
+      Leave empty to create the public certificate during deployment.
     Type: String
     Default: ""
   UseInternalLoadBalancer:
@@ -262,7 +305,9 @@ Parameters:
       - 'true'
       - 'false'
   DeployBastion:
-    Description: Deploy a bastion host inside the public subnet
+    Description: |
+      Deploy a bastion host inside the public subnet.
+      Choose false to skip deploying the Bastion.
     Type: String
     Default: "true"
     AllowedValues:
@@ -284,6 +329,10 @@ Parameters:
       - "15.00"
       - "14.00"
       - "13.00"
+  DatabaseKmsKeyId:
+    Type: String
+    Default: ""
+    Description: KMS Key Id to use for the encryption of the RDS storage. Leave empty to not encrypt the RDS storage
   QSS3BucketName:
     AllowedPattern: '^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$'
     ConstraintDescription: >-
@@ -320,9 +369,17 @@ Conditions:
   GenerateSslCertificate: !And
     - !Not [!Condition UsingExistingSslCertificate]
     - !Condition UsingAlb
+  DeployIam: !Or
+    - !Equals ["", !Ref IamRoleArn]
+    - !Equals ["", !Ref IamRoleName]
+  IsMultiNode: !Equals
+    - !Ref MultiNode
+    - "Multi Node"
+  UsingCustomUrl: !Not [!Equals [!Ref InstallerDownloadUrl, '']]
 Resources:
   FindAmiLambdaRole:
     Type: 'AWS::IAM::Role'
+    Condition: DeployIam
     Properties:
       Description: >-
         IAM Role to be assumed by Lambda functions which find AMI ids
@@ -350,7 +407,7 @@ Resources:
                   - 'logs:CreateLogGroup'
                   - 'logs:CreateLogStream'
                   - 'logs:PutLogEvents'
-                Resource: 'arn:aws:logs:*:*:*'
+                Resource: !Sub 'arn:${AWS::Partition}:logs:*:*:*'
               - Effect: Allow
                 Action:
                   - 'xray:PutTraceSegments'
@@ -360,7 +417,7 @@ Resources:
     Properties:
       Description: Finds a matching AMI Id
       Handler: lambda_function.handler
-      Role: !GetAtt FindAmiLambdaRole.Arn
+      Role: !If [DeployIam, !GetAtt FindAmiLambdaRole.Arn, !Ref IamRoleArn]
       Code:
         S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
         S3Key: !Sub '${QSS3KeyPrefix}functions/packages/FindAmi/lambda.zip'
@@ -479,7 +536,7 @@ Resources:
         TaskMining: !Ref TaskMining
         AddGpu: !Ref AddGpu
         DeployBastion: !Ref DeployBastion
-        InstallerDownloadUrl: !Sub "https://download.uipath.com/automation-suite/${UiPathVersion}/installer-${UiPathVersion}.zip"
+        InstallerDownloadUrl: !If [UsingCustomUrl, !Ref InstallerDownloadUrl, !Sub "https://download.uipath.com/automation-suite/${UiPathVersion}/installer-${UiPathVersion}.zip"]
 
   ConfigureSSLStack:
     Type: AWS::CloudFormation::Stack
@@ -495,6 +552,7 @@ Resources:
         QSS3KeyPrefix: !Sub "${QSS3KeyPrefix}submodules/quickstart-aws-acm-certificate/"
         DomainName: !Ref UiPathFQDN
         HostedZoneID: !Ref HostedZoneID
+        IamRoleArn: !Ref IamRoleArn
 
   DatabaseStack:
     Type: 'AWS::CloudFormation::Stack'
@@ -515,11 +573,14 @@ Resources:
         VPCCIDR: !Ref VPCCIDR
         SubnetIDs: !Join [",", !Ref PrivateSubnetIDs]
         RDSPasswordSecretArn: !Ref RDSPassword
+        MultiAZ: !If [IsMultiNode, "true", "false"]
         RDSEngine: !Ref RDSEngine
         RDSVersion: !Ref RDSVersion
+        KmsKeyId: !Ref DatabaseKmsKeyId
 
   CreateInputJsonLambdaRole:
     Type: 'AWS::IAM::Role'
+    Condition: DeployIam
     Properties:
       Description: >-
         IAM Role to be assumed by Lambda functions which find AMI ids
@@ -538,33 +599,45 @@ Resources:
           PolicyDocument:
             Version: 2012-10-17
             Statement:
+              - Action:
+                  - "secretsmanager:GetSecretValue"
+                  - "secretsmanager:PutSecretValue"
+                Resource:
+                  - !Ref InputJsonSecret
+                  - !Ref PlatformSecret
+                  - !Ref RDSPassword
+                  - !Ref OrgSecret
+                  - !Ref ArgoCdSecret
+                Effect: Allow
               - Effect: Allow
                 Action:
                   - 'autoscaling:DescribeAutoScalingGroups'
                   - 'autoscaling:DescribeAutoScalingInstances'
-                  - 'ec2:DescribeInstances'
-                  - 'ec2:DescribeInstanceTypeOfferings'
-                  - 'ec2:DescribeInstanceTypes'
-                  - 'secretsmanager:GetSecretValue'
-                  - 'secretsmanager:PutSecretValue'
                 Resource: '*'
               - Effect: Allow
                 Action:
                   - 'logs:CreateLogGroup'
                   - 'logs:CreateLogStream'
                   - 'logs:PutLogEvents'
-                Resource: 'arn:aws:logs:*:*:*'
+                Resource: !Sub 'arn:${AWS::Partition}:logs:*:*:*'
               - Effect: Allow
                 Action:
                   - 'xray:PutTraceSegments'
                 Resource: '*'
+              - Action:
+                  - ec2:DescribeImages
+                  - ec2:DescribeInstanceTypes
+                  - ec2:DescribeInstanceTypeOfferings
+                Resource:
+                  - "*"
+                Effect: Allow
 
   CreateInputJsonFunction:
     Type: 'AWS::Lambda::Function'
     Properties:
       Description: Create input json file
       Handler: lambda_function.handler
-      Role: !GetAtt CreateInputJsonLambdaRole.Arn
+      Role: !If [DeployIam, !GetAtt CreateInputJsonLambdaRole.Arn, !Ref IamRoleArn]
       Code:
         S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
         S3Key: !Sub '${QSS3KeyPrefix}functions/packages/CreateInputJson/lambda.zip'
@@ -603,9 +676,12 @@ Resources:
       AddGpu: !Ref AddGpu
       ServerInstanceCount: !GetAtt ComputeResourceSize.ServerInstanceCount
       AgentInstanceCount: !GetAtt ComputeResourceSize.AgentInstanceCount
+      PrivateSubnetIDs: !Join [",", !Ref PrivateSubnetIDs]
+      ExtraConfigKeys: !Ref ExtraConfigKeys
 
   ComputeResourceSizeLambdaRole:
     Type: 'AWS::IAM::Role'
+    Condition: DeployIam
     Properties:
       Description: >-
         IAM Role to be assumed by Lambda functions which find AMI ids
@@ -631,15 +707,13 @@ Resources:
                   - 'ec2:DescribeInstances'
                   - 'ec2:DescribeInstanceTypeOfferings'
                   - 'ec2:DescribeInstanceTypes'
-                  - 'secretsmanager:GetSecretValue'
-                  - 'secretsmanager:PutSecretValue'
                 Resource: '*'
               - Effect: Allow
                 Action:
                   - 'logs:CreateLogGroup'
                   - 'logs:CreateLogStream'
                   - 'logs:PutLogEvents'
-                Resource: 'arn:aws:logs:*:*:*'
+                Resource: !Sub 'arn:${AWS::Partition}:logs:*:*:*'
               - Effect: Allow
                 Action:
                   - 'xray:PutTraceSegments'
@@ -650,7 +724,7 @@ Resources:
     Properties:
       Description: Create input json file
       Handler: lambda_function.handler
-      Role: !GetAtt ComputeResourceSizeLambdaRole.Arn
+      Role: !If [DeployIam, !GetAtt ComputeResourceSizeLambdaRole.Arn, !Ref IamRoleArn]
       Code:
         S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
         S3Key: !Sub '${QSS3KeyPrefix}functions/packages/ComputeResourceSize/lambda.zip'
