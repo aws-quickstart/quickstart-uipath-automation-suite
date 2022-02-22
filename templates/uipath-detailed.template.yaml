@@ -20,6 +20,7 @@ Metadata:
         Parameters:
           - KeyPairName
           - AmiId
+          - GpuAmiId
           - IamRoleArn
           - IamRoleName
       - Label:
@@ -73,6 +74,8 @@ Metadata:
         default: Instance key pair
       AmiId:
         default: Instance AMI id
+      GpuAmiId:
+        default: GPU instance AMI id
       IamRoleArn:
         default: IAM Role ARN
       IamRoleName:
@@ -146,6 +149,12 @@ Parameters:
   AmiId:
     Description: |
       Enter the AMI Id to be used for the creation of the EC2 instances of the cluster.
+      Leave empty to determine automatically the AMI to use.
+    Type: String
+    Default: ''
+  GpuAmiId:
+    Description: |
+      Enter the AMI Id to be used for the creation of the GPU enabled EC2 instance.
       Leave empty to determine automatically the AMI to use.
     Type: String
     Default: ''
@@ -394,6 +403,7 @@ Resources:
         UseLevel7LoadBalancer: !Ref UseLevel7LoadBalancer
         PerformInstallation: "true"
         AddGpu: !Ref AddGpu
+        GpuAmiId: !Ref GpuAmiId
         ExtraConfigKeys: !Ref ExtraConfigKeys
         UiPathFQDN: !Ref UiPathFQDN
         ActionCenter: !Ref ActionCenter

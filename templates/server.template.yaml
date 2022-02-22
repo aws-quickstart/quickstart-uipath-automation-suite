@@ -29,6 +29,12 @@ Parameters:
     Description: AMI id for the cluster EC2 instances
     Type: String
     Default: ''
+  GpuAmiId:
+    Description: |
+      Enter the AMI Id to be used for the creation of the EC2 instances of the cluster.
+      Leave empty to determine automatically the AMI to use.
+    Type: String
+    Default: ''
   InstanceType:
     Description: Node Instance type
     Type: String
@@ -131,6 +137,9 @@ Conditions:
   FindingAmiAtDeploy: !Equals
     - !Ref AmiId
     - ''
+  FindingGpuAmiAtDeploy: !Equals
+    - !Ref GpuAmiId
+    - ''
   UsingPublicSubnets: !Not [!Equals ['', !Join ["", !Ref PublicSubnetIDs]]]
   DeployingBastion: !And
     - !Equals [!Ref DeployBastion, 'true']
@@ -199,7 +208,7 @@ Resources:
 
   GpuInstanceAMI:
     Type: 'Custom::InstanceAMI'
-    Condition: FindingAmiAtDeploy
+    Condition: FindingGpuAmiAtDeploy
     Properties:
       ServiceToken: !Ref FindAMIFunctionArn
       RegionName: !Ref 'AWS::Region'
@@ -1317,7 +1326,7 @@ Resources:
         Timeout: PT1H
     Properties:
       IamInstanceProfile: !Ref ServiceFabricInstanceProfile
-      ImageId: !If [FindingAmiAtDeploy, !GetAtt GpuInstanceAMI.ImageId, !Ref AmiId]
+      ImageId: !If [FindingGpuAmiAtDeploy, !GetAtt GpuInstanceAMI.ImageId, !Ref GpuAmiId]
       InstanceType: !Ref GpuInstanceType
       KeyName: !If [HasKeyName, !Ref KeyPairName, !Ref "AWS::NoValue"]
       BlockDeviceMappings:
