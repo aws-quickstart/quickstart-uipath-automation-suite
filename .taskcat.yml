@@ -4,15 +4,8 @@ project:
     QSS3KeyPrefix: "quickstart-uipath-automation-suite/"
     QSS3BucketName: "$[taskcat_autobucket]"
     QSS3BucketRegion: "$[taskcat_current_region]"
-    HAAPassword: "$[taskcat_genpass_8]"
-    OrchestratorPassword: "$[taskcat_genpass_8]"
-    RDSUsername: "$[taskcat_random-string]"
-    RDSPassword: "$[taskcat_genpass_8]"
-    RDSDBName: "$[taskcat_random-string]"
-    GatewayName: "$[taskcat_random-string]"
-    HAAUser: admin@shivansh.dev
-    HostedZoneID: Z03411186LX2V3ZE3N4K
-    KeyPairName: sshvans
+    HostedZoneID: override
+    KeyPairName: "$[taskcat_getkeypair]"
   regions:
   - ap-northeast-1
   - ap-northeast-2
@@ -36,14 +29,15 @@ project:
   lambda_zip_path: functions/packages
 
 tests:
-  default-orchestrator:
+  single-node-alb-core:
     template: ./templates/main.template.yaml
     regions:
-    - us-east-2
+      - us-east-2
     parameters:
-      AvailabilityZones: "$[taskcat_getaz_2]"
-      UiPathFQDN: "$[taskcat_random-string].shivansh.dev"
+      AvailabilityZones: "$[taskcat_getaz_3]"
+      NumberOfAZs: 3
+      UiPathFQDN: "$[taskcat_random-string]<<override>>"
       MultiNode: "Single Node"
       UseLevel7LoadBalancer: 'ALB'
-      UiPathVersion: "2021.10.1"
+      UiPathVersion: "2021.10.3"
       ServiceProfile: 'Default platform'

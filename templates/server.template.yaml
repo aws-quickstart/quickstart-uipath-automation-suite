@@ -480,9 +480,11 @@ Resources:
                 }
           commands:
             01_install_cw_agent:
-              command: rpm -U /tmp/amazon-cloudwatch-agent.rpm
+              command: if rpm -ivh --test /tmp/amazon-cloudwatch-agent.rpm; then rpm -U /tmp/amazon-cloudwatch-agent.rpm; else echo "CW agent already installed"; fi
+              ignoreErrors: "true"
             02_start_cw_agent:
               command: /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/config.json
+              ignoreErrors: "true"
 
     Properties:
       AssociatePublicIpAddress: false
@@ -665,9 +667,11 @@ Resources:
                 }
           commands:
             01_install_cw_agent:
-              command: rpm -U /tmp/amazon-cloudwatch-agent.rpm
+              command: if rpm -ivh --test /tmp/amazon-cloudwatch-agent.rpm; then rpm -U /tmp/amazon-cloudwatch-agent.rpm; else echo "CW agent already installed"; fi
+              ignoreErrors: "true"
             02_start_cw_agent:
               command: /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/config.json
+              ignoreErrors: "true"
 
     Properties:
       AssociatePublicIpAddress: false
@@ -885,10 +889,12 @@ Resources:
                   }
                 }
           commands:
-            01_install_agent:
-              command: rpm -U /tmp/amazon-cloudwatch-agent.rpm
-            02_start_agent:
+            01_install_cw_agent:
+              command: if rpm -ivh --test /tmp/amazon-cloudwatch-agent.rpm; then rpm -U /tmp/amazon-cloudwatch-agent.rpm; else echo "CW agent already installed"; fi
+              ignoreErrors: "true"
+            02_start_cw_agent:
               command: /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/config.json
+              ignoreErrors: "true"
     CreationPolicy:
       ResourceSignal:
         Count: 1
@@ -1069,9 +1075,11 @@ Resources:
                 }
           commands:
             01_install_cw_agent:
-              command: rpm -U /tmp/amazon-cloudwatch-agent.rpm
+              command: if rpm -ivh --test /tmp/amazon-cloudwatch-agent.rpm; then rpm -U /tmp/amazon-cloudwatch-agent.rpm; else echo "CW agent already installed"; fi
+              ignoreErrors: "true"
             02_start_cw_agent:
               command: /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/config.json
+              ignoreErrors: "true"
 
     CreationPolicy:
       ResourceSignal:
@@ -1213,9 +1221,11 @@ Resources:
                 }
           commands:
             01_install_cw_agent:
-              command: rpm -U /tmp/amazon-cloudwatch-agent.rpm
+              command: if rpm -ivh --test /tmp/amazon-cloudwatch-agent.rpm; then rpm -U /tmp/amazon-cloudwatch-agent.rpm; else echo "CW agent already installed"; fi
+              ignoreErrors: "true"
             02_start_cw_agent:
               command: /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/config.json
+              ignoreErrors: "true"
         install_ssm_agent:
           commands:
             01enable_ssm_agent:

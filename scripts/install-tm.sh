@@ -24,28 +24,7 @@ function main() {
   sleep 300
 
   [[ "${registration_status}" == "200" ]] || (echo "Primary server failed to start" && exit 1)
-  /root/installer/install-uipath.sh -i /root/installer/input.json -o /root/installer/output.json -k -j agent --accept-license-agreement --skip-pre-reqs
-
-  local try=0
-  local maxtry=60
-  local status="notready"
-  /root/download-kubeconfig.sh
-  if [[ "$(cat "/root/kubeconfig.yaml")" != "{}" ]]; then
-    status="ready"
-  fi
-
-  while [[ "${status}" != "ready" ]] && ((try != maxtry)); do
-    echo "Downloading kubeconfig ==== ${try}/${maxtry}" && sleep 10
-    try=$((try + 1))
-    /root/download-kubeconfig.sh
-    if [[ "$(cat "/root/kubeconfig.yaml")" != "{}" ]]; then
-      status="ready"
-    fi
-  done
-
-  export KUBECONFIG="/root/kubeconfig.yaml"
-
-  kubectl taint node "$(hostname)" task.mining/cpu=present:NoSchedule
+  /root/installer/install-uipath.sh -i /root/installer/input.json -o /root/installer/output.json -k -j task-mining --accept-license-agreement --skip-pre-reqs
 }
 
 main "$@"
