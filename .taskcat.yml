@@ -1,0 +1,43 @@
+project:
+  name: quickstart-uipath-automation-suite
+  parameters:
+    QSS3KeyPrefix: "quickstart-uipath-automation-suite/"
+    QSS3BucketName: "$[taskcat_autobucket]"
+    QSS3BucketRegion: "$[taskcat_current_region]"
+    HostedZoneID: override
+    KeyPairName: "$[taskcat_getkeypair]"
+  regions:
+  - ap-northeast-1
+  - ap-northeast-2
+  - ap-south-1
+  - ap-east-1
+  - ca-central-1
+  - eu-central-1
+  - eu-west-1
+  - eu-west-2
+  - eu-west-3
+  - me-south-1
+  - sa-east-1
+  - us-east-1
+  - us-east-2
+  - us-west-1
+  - us-west-2
+  shorten_stack_name: true
+  s3_regional_buckets: true
+  package_lambda: false
+  lambda_source_path: functions/source
+  lambda_zip_path: functions/packages
+
+tests:
+  single-node-alb-core:
+    template: ./templates/main.template.yaml
+    regions:
+      - us-east-2
+    parameters:
+      AvailabilityZones: "$[taskcat_getaz_3]"
+      NumberOfAZs: 3
+      UiPathFQDN: "$[taskcat_random-string]<<override>>"
+      MultiNode: "Single Node"
+      UseLevel7LoadBalancer: 'ALB'
+      UiPathVersion: "2021.10.3"
+      ServiceProfile: 'Default platform'
