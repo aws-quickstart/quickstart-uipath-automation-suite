@@ -3,6 +3,8 @@ import json
 import cfnresponse
 import threading
 import uuid
+import random
+import string
 
 
 def create(properties, physical_id):
@@ -12,6 +14,7 @@ def create(properties, physical_id):
     platform_secret_arn = properties['PlatformSecretArn']
     org_secret_arn = properties['OrgSecretArn']
     argocd_secret_arn = properties['ArgoCdSecretArn']
+    argocd_user_secret_arn = properties['ArgoCdUserSecretArn']
     fqdn = properties["Fqdn"]
     db_endpoint = properties["RDSDBInstanceEndpointAddress"]
     multi_node = properties["MultiNode"]
@@ -19,6 +22,7 @@ def create(properties, physical_id):
     action_center = properties['ActionCenter']
     test_manager = properties['TestManager']
     insights = properties['Insights']
+    data_service = properties['DataService']
     automation_hub = properties['AutomationHub']
     automation_ops = properties['AutomationOps']
     task_mining = properties['TaskMining']
@@ -30,15 +34,16 @@ def create(properties, physical_id):
     agent_instance_count = int(properties['AgentInstanceCount'])
     private_subnet_ids = properties['PrivateSubnetIDs']
     extra_dict_keys = properties['ExtraConfigKeys']
+    self_signed_cert_validity = properties['SelfSignedCertificateValidity']
 
     initial_number_of_instances = server_instance_count + agent_instance_count
 
     ret = {"fqdn": fqdn, "rke_token": str(uuid.uuid4())}
+    ret['cloud_template_vendor'] = 'AWS'
+    ret['cloud_template_source'] = 'Quickstart'
 
     ret['fixed_rke_address'] = internal_load_balancer_dns
     if multi_node.lower() == 'multi node':
-        ret['multinode'] = 'true'
-        ret['ha'] = 'true'
         ret['profile'] = 'ha'
         subnet_list = private_subnet_ids.split(',')
         if len(subnet_list) >= 3:
@@ -46,15 +51,10 @@ def create(properties, physical_id):
         else:
             ret['zone_resilience'] = False
     else:
-        ret['multinode'] = 'false'
-        ret['ha'] = 'false'
         ret['profile'] = 'default'
 
     if add_gpu.lower() == 'true':
         initial_number_of_instances += 1
-        ret['gpu_support'] = True
-    else:
-        ret["gpu_support"] = False
 
     sm = boto3.client('secretsmanager', region_name=region)
 
@@ -81,6 +81,14 @@ def create(properties, physical_id):
     print("Adding ArgoCD username and password to JSON")
     ret['fabric'] = {"argocd_admin_password": secret['password']}
 
+    print("Getting ArgoCD readonly User secret")
+    argocd_user_secret = sm.get_secret_value(
+        SecretId=argocd_user_secret_arn
+    )
+    secret = json.loads(argocd_user_secret['SecretString'])
+    print("Adding ArgoCD readonly user's password to JSON")
+    ret['fabric']["argocd_user_password"] = secret['password']
+
     # fix issue with non existing server certificates file
     ret["server_certificate"] = {}
     ret["server_certificate"]["ca_cert_file"] = "/root/rootCA.crt"
@@ -89,8 +97,10 @@ def create(properties, physical_id):
 
     ret["identity_certificate"] = {}
     ret["identity_certificate"]["token_signing_cert_file"] = "/root/token_signing_certificate.pfx"
-    ret["identity_certificate"]["token_signing_cert_pass"] = ""
+    ret["identity_certificate"]["token_signing_cert_pass"] = ''.join(random.choice(string.ascii_letters) for i in range(20))
     ret["identity_certificate"]["ldap_cert_authority_file"] = ""
+
+    ret['self_signed_cert_validity'] = self_signed_cert_validity
 
     if extra_dict_keys:
         try:
@@ -109,17 +119,15 @@ def create(properties, physical_id):
     )
     secret = json.loads(db_secret['SecretString'])
     ret["sql"] = {}
-    ret["sql"]["server_url"] = db_endpoint
-    ret["sql"]["username"] = secret['username']
-    ret["sql"]["password"] = secret['password']
-    ret["sql"]["port"] = '1433'
     ret["sql"]["create_db"] = True
 
-    sql_connection_string = f"Server=tcp:{db_endpoint},1433;Initial Catalog=DB_NAME_PLACEHOLDER;Persist Security Info=False;User Id={secret['username']};Password={secret['password']};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Connection Timeout=30;Max Pool Size=100;"
+    dot_net_escaped_password = secret['password'].replace("'", "''")
+    odbc_escaped_password = secret['password'].replace("}", "}}")
+
     print("Adding SQL connection strings to JSON")
-    ret["sql_connection_string_template"] = sql_connection_string
-    ret["sql_connection_string_template_jdbc"] = f"jdbc:sqlserver://{db_endpoint};database=DB_NAME_PLACEHOLDER;user={secret['username']};password={secret['password']}"
-    ret["sql_connection_string_template_odbc"] = f"SERVER={db_endpoint};DATABASE=DB_NAME_PLACEHOLDER;DRIVER={{ODBC Driver 17 for SQL Server}};UID={secret['username']};PWD={secret['password']}"
+    ret["sql_connection_string_template"] = f"Server=tcp:{db_endpoint},1433;Initial Catalog=DB_NAME_PLACEHOLDER;Persist Security Info=False;User Id={secret['username']};Password='{dot_net_escaped_password}';MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Connection Timeout=30;Max Pool Size=100;"
+    ret["sql_connection_string_template_jdbc"] = f"jdbc:sqlserver://{db_endpoint};database=DB_NAME_PLACEHOLDER;user={secret['username']};password={{{odbc_escaped_password}}}"
+    ret["sql_connection_string_template_odbc"] = f"SERVER={db_endpoint};DATABASE=DB_NAME_PLACEHOLDER;DRIVER={{ODBC Driver 17 for SQL Server}};UID={secret['username']};PWD={{{odbc_escaped_password}}}"
 
     ret['orchestrator'] = {}
     ret['orchestrator']['testautomation'] = {"enabled": True}
@@ -139,6 +147,11 @@ def create(properties, physical_id):
         ret['action_center'] = {"enabled": True}
     else:
         ret['action_center'] = {"enabled": False}
+
+    if data_service.lower() == "true":
+        ret['dataservice'] = {"enabled": True}
+    else:
+        ret['dataservice'] = {"enabled": False}
 
     if test_manager.lower() == "true":
         ret['test_manager'] = {"enabled": True}
@@ -199,11 +212,13 @@ def update(properties, physical_id):
     platform_secret_arn = properties['PlatformSecretArn']
     org_secret_arn = properties['OrgSecretArn']
     argocd_secret_arn = properties['ArgoCdSecretArn']
+    argocd_user_secret_arn = properties['ArgoCdUserSecretArn']
     fqdn = properties["Fqdn"]
     db_endpoint = properties["RDSDBInstanceEndpointAddress"]
     multi_node = properties["MultiNode"]
     internal_load_balancer_dns = properties["KubeLoadBalancerDns"]
     action_center = properties['ActionCenter']
+    data_service = properties['DataService']
     test_manager = properties['TestManager']
     insights = properties['Insights']
     automation_hub = properties['AutomationHub']
@@ -217,15 +232,16 @@ def update(properties, physical_id):
     agent_instance_count = int(properties['AgentInstanceCount'])
     private_subnet_ids = properties['PrivateSubnetIDs']
     extra_dict_keys = properties['ExtraConfigKeys']
+    self_signed_cert_validity = properties['SelfSignedCertificateValidity']
 
     initial_number_of_instances = server_instance_count + agent_instance_count
 
     ret = {"fqdn": fqdn, "rke_token": str(uuid.uuid4())}
+    ret['cloud_template_vendor'] = 'AWS'
+    ret['cloud_template_source'] = 'Quickstart'
 
     ret['fixed_rke_address'] = internal_load_balancer_dns
     if multi_node.lower() == 'multi node':
-        ret['multinode'] = 'true'
-        ret['ha'] = 'true'
         ret['profile'] = 'ha'
         subnet_list = private_subnet_ids.split(',')
         if len(subnet_list) >= 3:
@@ -233,15 +249,10 @@ def update(properties, physical_id):
         else:
             ret['zone_resilience'] = False
     else:
-        ret['multinode'] = 'false'
-        ret['ha'] = 'false'
         ret['profile'] = 'default'
 
     if add_gpu.lower() == 'true':
         initial_number_of_instances += 1
-        ret['gpu_support'] = True
-    else:
-        ret["gpu_support"] = False
 
     sm = boto3.client('secretsmanager', region_name=region)
 
@@ -268,6 +279,14 @@ def update(properties, physical_id):
     print("Adding ArgoCD username and password to JSON")
     ret['fabric'] = {"argocd_admin_password": secret['password']}
 
+    print("Getting ArgoCD readonly User secret")
+    argocd_user_secret = sm.get_secret_value(
+        SecretId=argocd_user_secret_arn
+    )
+    secret = json.loads(argocd_user_secret['SecretString'])
+    print("Adding ArgoCD readonly user's password to JSON")
+    ret['fabric']["argocd_user_password"] = secret['password']
+
     # fix issue with non existing server certificates file
     ret["server_certificate"] = {}
     ret["server_certificate"]["ca_cert_file"] = "/root/rootCA.crt"
@@ -276,8 +295,10 @@ def update(properties, physical_id):
 
     ret["identity_certificate"] = {}
     ret["identity_certificate"]["token_signing_cert_file"] = "/root/token_signing_certificate.pfx"
-    ret["identity_certificate"]["token_signing_cert_pass"] = ""
+    ret["identity_certificate"]["token_signing_cert_pass"] = ''.join(random.choice(string.ascii_letters) for i in range(20))
     ret["identity_certificate"]["ldap_cert_authority_file"] = ""
+
+    ret['self_signed_cert_validity'] = self_signed_cert_validity
 
     if extra_dict_keys:
         try:
@@ -296,17 +317,15 @@ def update(properties, physical_id):
     )
     secret = json.loads(db_secret['SecretString'])
     ret["sql"] = {}
-    ret["sql"]["server_url"] = db_endpoint
-    ret["sql"]["username"] = secret['username']
-    ret["sql"]["password"] = secret['password']
-    ret["sql"]["port"] = '1433'
     ret["sql"]["create_db"] = True
 
-    sql_connection_string = f"Server=tcp:{db_endpoint},1433;Initial Catalog=DB_NAME_PLACEHOLDER;Persist Security Info=False;User Id={secret['username']};Password={secret['password']};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Connection Timeout=30;Max Pool Size=100;"
+    dot_net_escaped_password = secret['password'].replace("'", "''")
+    odbc_escaped_password = secret['password'].replace("}", "}}")
+
     print("Adding SQL connection strings to JSON")
-    ret["sql_connection_string_template"] = sql_connection_string
-    ret["sql_connection_string_template_jdbc"] = f"jdbc:sqlserver://{db_endpoint};database=DB_NAME_PLACEHOLDER;user={secret['username']};password={secret['password']}"
-    ret["sql_connection_string_template_odbc"] = f"SERVER={db_endpoint};DATABASE=DB_NAME_PLACEHOLDER;DRIVER={{ODBC Driver 17 for SQL Server}};UID={secret['username']};PWD={secret['password']}"
+    ret["sql_connection_string_template"] = f"Server=tcp:{db_endpoint},1433;Initial Catalog=DB_NAME_PLACEHOLDER;Persist Security Info=False;User Id={secret['username']};Password='{dot_net_escaped_password}';MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Connection Timeout=30;Max Pool Size=100;"
+    ret["sql_connection_string_template_jdbc"] = f"jdbc:sqlserver://{db_endpoint};database=DB_NAME_PLACEHOLDER;user={secret['username']};password={{{odbc_escaped_password}}}"
+    ret["sql_connection_string_template_odbc"] = f"SERVER={db_endpoint};DATABASE=DB_NAME_PLACEHOLDER;DRIVER={{ODBC Driver 17 for SQL Server}};UID={secret['username']};PWD={{{odbc_escaped_password}}}"
 
     ret['orchestrator'] = {}
     ret['orchestrator']['testautomation'] = {"enabled": True}
@@ -326,6 +345,11 @@ def update(properties, physical_id):
         ret['action_center'] = {"enabled": True}
     else:
         ret['action_center'] = {"enabled": False}
+
+    if data_service.lower() == "true":
+        ret['dataservice'] = {"enabled": True}
+    else:
+        ret['dataservice'] = {"enabled": False}
 
     if test_manager.lower() == "true":
         ret['test_manager'] = {"enabled": True}

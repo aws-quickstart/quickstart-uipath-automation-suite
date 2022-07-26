@@ -115,9 +115,13 @@ Parameters:
   KubeconfigSecretArn:
     Description: ARN of Secret where the kubeconfig file is stored
     Type: String
-  InstallerDownloadUrl:
-    Description: Installer download URL
+  InstallerDownloadUrlParameterName:
+    Description: Name of the SSM parameter that contains the installer download URL
     Type: String
+  BackupFileSystemDns:
+    Description: DNS name of the backup server
+    Type: String
+    Default: ""
 Conditions:
   UsingDefaultBucket: !Equals
     - !Ref QSS3BucketName
@@ -148,6 +152,7 @@ Conditions:
   DeployIam: !Or
     - !Equals ["", !Ref IamRoleArn]
     - !Equals ["", !Ref IamRoleName]
+  IsBackupEnabled: !Not [ !Equals [ !Ref BackupFileSystemDns, "" ] ]
 Resources:
   ServiceFabricSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
@@ -195,13 +200,32 @@ Resources:
           FromPort: 8472
           ToPort: 8472
           CidrIp: !Ref VPCCIDR
+  
+
+  InstanceAMIImageName:
+    Type: AWS::SSM::Parameter
+    Condition: FindingAmiAtDeploy
+    Properties:
+      Name: !Sub "/${AWS::StackName}/InstanceAMIImageName"
+      Type: String
+      Value: RHEL-8.3*_HVM-20*
+      Description: SSM Parameter for storing the Image Name of the AMI used in the ASGs.
+  
+  InstanceAmiId:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/${AWS::StackName}/InstanceAmiId"
+      Type: String
+      Value: !If [FindingAmiAtDeploy, !GetAtt InstanceAMI.ImageId, !Ref AmiId]
+      Description: SSM Parameter for storing the AMI used in the ASGs.
+
   InstanceAMI:
     Type: 'Custom::InstanceAMI'
     Condition: FindingAmiAtDeploy
     Properties:
       ServiceToken: !Ref FindAMIFunctionArn
       RegionName: !Ref 'AWS::Region'
-      ImageName: RHEL-8.3*_HVM-20*
+      ImageName: !Sub '{{resolve:ssm:${InstanceAMIImageName}}}'
       Architecture: x86_64
       VirtualizationType: hvm
       Owners: '309956199498'
@@ -232,6 +256,8 @@ Resources:
             Action:
               - 'sts:AssumeRole'
       Description: IAM Role providing required access for EC2 instance
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore
   ServiceFabricInstanceProfile:
     Type: 'AWS::IAM::InstanceProfile'
     Properties:
@@ -265,6 +291,25 @@ Resources:
             Resource:
               - !Sub "arn:${AWS::Partition}:xray:${AWS::Region}:${AWS::AccountId}:*"
       PolicyName: CloudwatchLogsAccess
+      Roles:
+        - !Ref ServiceFabricIamRole
+  LifecycleHookActionsPolicy:
+    Type: 'AWS::IAM::Policy'
+    Condition: DeployIam
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+            - autoscaling:CompleteLifecycleAction
+            Resource:
+              - !Sub "arn:${AWS::Partition}:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${ServerAutoScalingGroup}"
+              - !If
+                - IsMultiNode
+                - !Sub "arn:${AWS::Partition}:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${AgentAutoScalingGroup}"
+                - !Ref AWS::NoValue
+            Effect: Allow
+      PolicyName: LifecycleHookActionsPolicy
       Roles:
         - !Ref ServiceFabricIamRole
   Ec2QueryPolicy:
@@ -345,8 +390,23 @@ Resources:
       PolicyName: KubeConfigReadWriteAccess
       Roles:
         - !Ref ServiceFabricIamRole
+  InstallerDownloadUrlParameterPolicy:
+    Type: 'AWS::IAM::Policy'
+    Condition: DeployIam
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - "ssm:GetParameter"
+            Resource:
+              - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:${InstallerDownloadUrlParameterName}
+            Effect: Allow
+      PolicyName: InstallerDownloadUrlParameterReadAccess
+      Roles:
+        - !Ref ServiceFabricIamRole
   ServerLaunchConfiguration:
-    Type: 'AWS::AutoScaling::LaunchConfiguration'
+    Type: 'AWS::EC2::LaunchTemplate'
     Metadata:
       AWS::CloudFormation::Authentication:
         S3AccessCreds:
@@ -356,11 +416,11 @@ Resources:
       AWS::CloudFormation::Init:
         configSets:
           config:
-            - disk_setup
             - aws_cli_setup
             - cloudwatch_agent_setup
             - install_ssm_agent
             - download_sf
+            - disk_setup
             - install_server
         disk_setup:
           files:
@@ -386,7 +446,7 @@ Resources:
             01_execute_prereqs:
               command: dnf -y install unzip jq tree lvm2 bc
             02_execute_init_disk:
-              command: /root/init-disk.sh
+              command: /root/init-disk.sh --server
         aws_cli_setup:
           files:
             /tmp/awscliv2.zip:
@@ -400,14 +460,19 @@ Resources:
           commands:
             01enable_ssm_agent:
               command: !Sub 'dnf install -y https://s3.${AWS::Region}.amazonaws.com/amazon-ssm-${AWS::Region}/latest/linux_amd64/amazon-ssm-agent.rpm'
+              ignoreErrors: "true"
             02enable_ssm_agent:
               command: systemctl enable amazon-ssm-agent
+              ignoreErrors: "true"
             03start_ssm_agent:
               command: systemctl start amazon-ssm-agent
+              ignoreErrors: "true"
         download_sf:
           files:
-            /root/sf-installer.zip:
-              source: !Ref InstallerDownloadUrl
+            /root/download-sf-installer.sh:
+              content: !Sub |
+                #!/bin/bash -x
+                wget "$(aws ssm get-parameter --name "${InstallerDownloadUrlParameterName}" | jq -r '.Parameter.Value')" -O /root/sf-installer.zip
               owner: "root"
               group: "root"
               mode: "00700"
@@ -422,11 +487,13 @@ Resources:
               group: "root"
               mode: "00700"
           commands:
-            01_unzip_installer:
+            01_download_installer:
+              command: /root/download-sf-installer.sh
+            02_unzip_installer:
               command: unzip -o /root/sf-installer.zip -d /root/installer
-            02_set_permissions:
+            03_set_permissions:
               command: chmod -R +r,+w,+x /root/installer/*
-            03_download_input:
+            04_download_input:
               command: !Sub /usr/local/bin/aws secretsmanager get-secret-value --secret-id "${InputJsonSecretArn}" | jq '.SecretString | fromjson' > /root/installer/input.json
         install_server:
           files:
@@ -439,11 +506,38 @@ Resources:
               owner: "root"
               group: "root"
               mode: "000700"
+            /root/installer/backup.json:
+              content: !Sub |
+                {
+                  "backup": {
+                    "etcdBackupPath": "/backup",
+                    "nfs": {
+                      "endpoint": "${BackupFileSystemDns}",
+                      "mountpath": "/"
+                    }
+                  },
+                  "backup_interval": "15"
+                }
+              owner: "root"
+              group: "root"
+              mode: "000700"
+            /root/installer/generate-certs.sh:
+              source: !Sub
+                - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}scripts/generate-certs.sh'
+                - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+                  S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+              authentication: S3AccessCreds
+              owner: "root"
+              group: "root"
+              mode: "000700"
           commands:
             01_install_server:
               command: !If
                 - IsPerformingInstallation
-                - (trap "" SIGPIPE; export HOME="/root"; /root/install-server.sh)
+                - !If
+                  - IsBackupEnabled
+                  - (trap "" SIGPIPE; export HOME="/root"; /root/install-server.sh -b)
+                  - (trap "" SIGPIPE; export HOME="/root"; /root/install-server.sh)
                 - echo "Done"
         cloudwatch_agent_setup:
           files:
@@ -487,62 +581,75 @@ Resources:
               ignoreErrors: "true"
 
     Properties:
-      AssociatePublicIpAddress: false
-      BlockDeviceMappings:
-        - DeviceName: /dev/sda1
-          Ebs:
-            DeleteOnTermination: false
-            Encrypted: true
-            VolumeSize: 128
-            VolumeType: gp2
-        - DeviceName: /dev/sdb
-          Ebs:
-            DeleteOnTermination: false
-            Encrypted: true
-            VolumeSize: !Ref ServerDiskSize
-            VolumeType: gp2
-        - DeviceName: /dev/sdc
-          Ebs:
-            DeleteOnTermination: false
-            Encrypted: true
-            VolumeSize: 32
-            VolumeType: io1
-            Iops: 120
-        - DeviceName: /dev/sdd
-          Ebs:
-            DeleteOnTermination: true
-            Encrypted: true
-            VolumeSize: 300
-            VolumeType: gp2
-      ImageId: !If [FindingAmiAtDeploy, !GetAtt InstanceAMI.ImageId, !Ref AmiId]
-      IamInstanceProfile: !GetAtt ServiceFabricInstanceProfile.Arn
-      InstanceType: !Ref InstanceType
-      KeyName: !If [HasKeyName, !Ref KeyPairName, !Ref "AWS::NoValue"]
-      PlacementTenancy: default
-      SecurityGroups:
-        - !Ref ServiceFabricSecurityGroup
-      UserData: !Base64
-        Fn::Sub: |
-          #!/bin/bash -x
-          dnf update -y
-          dnf install -y python3
-          dnf install -y wget unzip jq
-          mkdir -p /opt/aws/bin
-          wget -O /tmp/aws-cfn-bootstrap-py3-latest.tar.gz https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
-          python3 -m easy_install --script-dir /opt/aws/bin /tmp/aws-cfn-bootstrap-py3-latest.tar.gz
-          /opt/aws/bin/cfn-init -v \
-                   --stack ${AWS::StackName} \
-                   --resource ServerLaunchConfiguration \
-                   --configsets config \
-                   --region ${AWS::Region}
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          - DeviceName: /dev/sda1
+            Ebs:
+              DeleteOnTermination: false
+              Encrypted: true
+              VolumeSize: 128
+              VolumeType: gp2
+          - DeviceName: /dev/sdb
+            Ebs:
+              DeleteOnTermination: false
+              Encrypted: true
+              VolumeSize: !Ref ServerDiskSize
+              VolumeType: gp2
+          - DeviceName: /dev/sdc
+            Ebs:
+              DeleteOnTermination: false
+              Encrypted: true
+              VolumeSize: 32
+              VolumeType: io1
+              Iops: 120
+          - DeviceName: /dev/sdd
+            Ebs:
+              DeleteOnTermination: true
+              Encrypted: true
+              VolumeSize: 300
+              VolumeType: gp2
+        ImageId: !Sub '{{resolve:ssm:${InstanceAmiId}}}'
+        IamInstanceProfile:
+          Arn: !GetAtt ServiceFabricInstanceProfile.Arn
+        InstanceType: !Ref InstanceType
+        KeyName: !If [HasKeyName, !Ref KeyPairName, !Ref "AWS::NoValue"]
+        SecurityGroupIds:
+          - !GetAtt ServiceFabricSecurityGroup.GroupId
+        UserData: !Base64
+          Fn::Sub: |
+            #!/bin/bash -x
+            dnf update -y
+            dnf install -y python3
+            dnf install -y wget unzip jq
+            mkdir -p /opt/aws/bin
+            wget -O /tmp/aws-cfn-bootstrap-py3-latest.tar.gz https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+            python3 -m easy_install --script-dir /opt/aws/bin /tmp/aws-cfn-bootstrap-py3-latest.tar.gz
+            /opt/aws/bin/cfn-init -v \
+                     --stack ${AWS::StackName} \
+                     --resource ServerLaunchConfiguration \
+                     --configsets config \
+                     --region ${AWS::Region}
 
-          /opt/aws/bin/cfn-signal -e $? \
-                   --stack ${AWS::StackName } \
-                   --resource ServerAutoScalingGroup \
-                   --region ${AWS::Region }
+            init_exit_code=$?
 
+            /opt/aws/bin/cfn-signal -e $init_exit_code \
+                     --stack ${AWS::StackName } \
+                     --resource ServerAutoScalingGroup \
+                     --region ${AWS::Region }
+            
+            if [ $init_exit_code -eq 0 ]; then
+              lifecycle_action="CONTINUE"
+            else
+              lifecycle_action="ABANDON"
+            fi
+            metadata_token=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+            instance_id=$(curl -H "X-aws-ec2-metadata-token: $metadata_token" -s http://169.254.169.254/latest/meta-data/instance-id)
+            /usr/local/bin/aws autoscaling complete-lifecycle-action --lifecycle-action-result "$lifecycle_action" \
+                                                                     --lifecycle-hook-name ${AWS::StackName}-ServerInstallFinishedHook \
+                                                                     --auto-scaling-group-name ServerAutoScalingGroup \
+                                                                     --instance-id "$instance_id"
   AgentLaunchConfiguration:
-    Type: 'AWS::AutoScaling::LaunchConfiguration'
+    Type: 'AWS::EC2::LaunchTemplate'
     Condition: IsMultiNode
     Metadata:
       AWS::CloudFormation::Authentication:
@@ -553,11 +660,11 @@ Resources:
       AWS::CloudFormation::Init:
         configSets:
           config:
-            - disk_setup
             - aws_cli_setup
             - cloudwatch_agent_setup
             - install_ssm_agent
             - download_sf
+            - disk_setup
             - install_agent
         disk_setup:
           files:
@@ -597,23 +704,37 @@ Resources:
           commands:
             01enable_ssm_agent:
               command: !Sub 'dnf install -y https://s3.${AWS::Region}.amazonaws.com/amazon-ssm-${AWS::Region}/latest/linux_amd64/amazon-ssm-agent.rpm'
+              ignoreErrors: "true"
             02enable_ssm_agent:
               command: systemctl enable amazon-ssm-agent
+              ignoreErrors: "true"
             03start_ssm_agent:
               command: systemctl start amazon-ssm-agent
+              ignoreErrors: "true"
         download_sf:
           files:
-            /root/sf-installer.zip:
-              source: !Ref InstallerDownloadUrl
+            /root/download-sf-installer.sh:
+              content: !Sub |
+                #!/bin/bash -x
+                wget "$(aws ssm get-parameter --name "${InstallerDownloadUrlParameterName}" | jq -r '.Parameter.Value')" -O /root/sf-installer.zip
+              owner: "root"
+              group: "root"
+              mode: "00700"
+            /root/download-kubeconfig.sh:
+              content: !Sub |
+                #!/bin/bash -x
+                /usr/local/bin/aws secretsmanager get-secret-value --secret-id "${KubeconfigSecretArn}" | jq -r '.SecretString' > /root/kubeconfig.yaml
               owner: "root"
               group: "root"
               mode: "00700"
           commands:
-            01_unzip_installer:
+            01_download_installer:
+              command: /root/download-sf-installer.sh
+            02_unzip_installer:
               command: unzip -o /root/sf-installer.zip -d /root/installer
-            02_set_permissions:
+            03_set_permissions:
               command: chmod -R +r,+w,+x /root/installer/*
-            03_download_input:
+            04_download_input:
               command: !Sub /usr/local/bin/aws secretsmanager get-secret-value --secret-id "${InputJsonSecretArn}" | jq '.SecretString | fromjson' > /root/installer/input.json
         install_agent:
           files:
@@ -674,46 +795,58 @@ Resources:
               ignoreErrors: "true"
 
     Properties:
-      AssociatePublicIpAddress: false
-      BlockDeviceMappings:
-        - DeviceName: /dev/sda1
-          Ebs:
-            DeleteOnTermination: true
-            Encrypted: true
-            VolumeSize: 128
-            VolumeType: gp2
-        - DeviceName: /dev/sdd
-          Ebs:
-            DeleteOnTermination: true
-            Encrypted: true
-            VolumeSize: 300
-            VolumeType: gp2
-      ImageId: !If [FindingAmiAtDeploy, !GetAtt InstanceAMI.ImageId, !Ref AmiId]
-      IamInstanceProfile: !GetAtt ServiceFabricInstanceProfile.Arn
-      InstanceType: !Ref InstanceType
-      KeyName: !If [HasKeyName, !Ref KeyPairName, !Ref "AWS::NoValue"]
-      PlacementTenancy: default
-      SecurityGroups:
-        - !Ref ServiceFabricSecurityGroup
-      UserData: !Base64
-        Fn::Sub: |
-          #!/bin/bash -x
-          dnf update -y
-          dnf install -y python3
-          dnf install -y wget unzip jq
-          mkdir -p /opt/aws/bin
-          wget -O /tmp/aws-cfn-bootstrap-py3-latest.tar.gz https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
-          python3 -m easy_install --script-dir /opt/aws/bin /tmp/aws-cfn-bootstrap-py3-latest.tar.gz
-          /opt/aws/bin/cfn-init -v \
-                   --stack ${AWS::StackName} \
-                   --resource AgentLaunchConfiguration \
-                   --configsets config \
-                   --region ${AWS::Region}
-
-          /opt/aws/bin/cfn-signal -e $? \
-                   --stack ${AWS::StackName } \
-                   --resource AgentAutoScalingGroup \
-                   --region ${AWS::Region }
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          - DeviceName: /dev/sda1
+            Ebs:
+              DeleteOnTermination: true
+              Encrypted: true
+              VolumeSize: 128
+              VolumeType: gp2
+          - DeviceName: /dev/sdd
+            Ebs:
+              DeleteOnTermination: true
+              Encrypted: true
+              VolumeSize: 300
+              VolumeType: gp2
+        ImageId: !Sub '{{resolve:ssm:${InstanceAmiId}}}'
+        IamInstanceProfile:
+          Arn: !GetAtt ServiceFabricInstanceProfile.Arn
+        InstanceType: !Ref InstanceType
+        KeyName: !If [HasKeyName, !Ref KeyPairName, !Ref "AWS::NoValue"]
+        SecurityGroupIds:
+          - !GetAtt ServiceFabricSecurityGroup.GroupId
+        UserData: !Base64
+          Fn::Sub: |
+            #!/bin/bash -x
+            dnf update -y
+            dnf install -y python3
+            dnf install -y wget unzip jq
+            mkdir -p /opt/aws/bin
+            wget -O /tmp/aws-cfn-bootstrap-py3-latest.tar.gz https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+            python3 -m easy_install --script-dir /opt/aws/bin /tmp/aws-cfn-bootstrap-py3-latest.tar.gz
+            /opt/aws/bin/cfn-init -v \
+                     --stack ${AWS::StackName} \
+                     --resource AgentLaunchConfiguration \
+                     --configsets config \
+                     --region ${AWS::Region}
+            init_exit_code=$?
+            /opt/aws/bin/cfn-signal -e init_exit_code \
+                     --stack ${AWS::StackName } \
+                     --resource AgentAutoScalingGroup \
+                     --region ${AWS::Region }
+            
+            if [ $init_exit_code -eq 0 ]; then
+              lifecycle_action="CONTINUE"
+            else
+              lifecycle_action="ABANDON"
+            fi
+            metadata_token=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+            instance_id=$(curl -H "X-aws-ec2-metadata-token: $metadata_token" -s http://169.254.169.254/latest/meta-data/instance-id)
+            /usr/local/bin/aws autoscaling complete-lifecycle-action --lifecycle-action-result "$lifecycle_action" \
+                                                                     --lifecycle-hook-name ${AWS::StackName}-AgentInstallFinishedHook \
+                                                                     --auto-scaling-group-name AgentAutoScalingGroup \
+                                                                     --instance-id "$instance_id"
 
   AgentAutoScalingGroup:
     Type: 'AWS::AutoScaling::AutoScalingGroup'
@@ -725,7 +858,11 @@ Resources:
     Properties:
       DesiredCapacity: !Ref AgentInstanceCount
       HealthCheckType: EC2
-      LaunchConfigurationName: !Ref AgentLaunchConfiguration
+      LaunchTemplate:
+        LaunchTemplateId: !Ref AgentLaunchConfiguration
+        Version: !GetAtt
+          - AgentLaunchConfiguration
+          - LatestVersionNumber
       MaxSize: !Ref AgentInstanceCount
       MetricsCollection:
         - Granularity: 1Minute
@@ -753,7 +890,11 @@ Resources:
     Properties:
       DesiredCapacity: !Ref ServerInstanceCount
       HealthCheckType: EC2
-      LaunchConfigurationName: !Ref ServerLaunchConfiguration
+      LaunchTemplate:
+        LaunchTemplateId: !Ref ServerLaunchConfiguration
+        Version: !GetAtt
+          - ServerLaunchConfiguration
+          - LatestVersionNumber
       MaxSize: !Ref ServerInstanceCount
       MetricsCollection:
         - Granularity: 1Minute
@@ -773,6 +914,26 @@ Resources:
         - !Ref KubeTargetGroupArn
         - !Ref Rke2RegistrationTargetGroupArn
       VPCZoneIdentifier: !Ref PrivateSubnetIDs
+
+  AgentAsgLifeCycleHookLaunching:
+    Type: "AWS::AutoScaling::LifecycleHook"
+    Condition: IsMultiNode
+    Properties:
+      LifecycleHookName: !Sub "${AWS::StackName}-AgentInstallFinishedHook"
+      AutoScalingGroupName: !Ref AgentAutoScalingGroup
+      LifecycleTransition: "autoscaling:EC2_INSTANCE_LAUNCHING"
+      HeartbeatTimeout: 7200
+      DefaultResult: ABANDON
+
+  ServerAsgLifeCycleHookLaunching:
+    Type: "AWS::AutoScaling::LifecycleHook"
+    Properties:
+      LifecycleHookName: !Sub "${AWS::StackName}-ServerInstallFinishedHook"
+      AutoScalingGroupName: !Ref ServerAutoScalingGroup
+      LifecycleTransition: "autoscaling:EC2_INSTANCE_LAUNCHING"
+      HeartbeatTimeout: 7200
+      DefaultResult: ABANDON
+
   BastionSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Condition: DeployingBastion
@@ -823,7 +984,8 @@ Resources:
         S3Key: !Sub '${QSS3KeyPrefix}functions/packages/PatchAsg/lambda.zip'
       Handler: lambda_function.handler
       Role: !If [DeployIam, !GetAtt AsgProcessModificationRole.Arn, !Ref IamRoleArn]
-      Runtime: python3.6
+      Runtime: python3.9
+      Timeout: 30
 
   ModifyAsg:
     Type: 'Custom::ModifyAsg'
@@ -901,7 +1063,7 @@ Resources:
         Timeout: PT1H
     Properties:
       IamInstanceProfile: !Ref ServiceFabricInstanceProfile
-      ImageId: !If [FindingAmiAtDeploy, !GetAtt InstanceAMI.ImageId, !Ref AmiId]
+      ImageId: !Sub '{{resolve:ssm:${InstanceAmiId}}}'
       InstanceType: "t3.large"
       KeyName: !If [HasKeyName, !Ref KeyPairName, !Ref "AWS::NoValue"]
       BlockDeviceMappings:
@@ -954,11 +1116,11 @@ Resources:
       AWS::CloudFormation::Init:
         configSets:
           config:
-            - disk_setup
             - aws_cli_setup
             - cloudwatch_agent_setup
             - install_ssm_agent
             - download_sf
+            - disk_setup
             - install_tm
         disk_setup:
           files:
@@ -998,14 +1160,19 @@ Resources:
           commands:
             01enable_ssm_agent:
               command: !Sub 'dnf install -y https://s3.${AWS::Region}.amazonaws.com/amazon-ssm-${AWS::Region}/latest/linux_amd64/amazon-ssm-agent.rpm'
+              ignoreErrors: "true"
             02enable_ssm_agent:
               command: systemctl enable amazon-ssm-agent
+              ignoreErrors: "true"
             03start_ssm_agent:
               command: systemctl start amazon-ssm-agent
+              ignoreErrors: "true"
         download_sf:
           files:
-            /root/sf-installer.zip:
-              source: !Ref InstallerDownloadUrl
+            /root/download-sf-installer.sh:
+              content: !Sub |
+                #!/bin/bash -x
+                wget "$(aws ssm get-parameter --name "${InstallerDownloadUrlParameterName}" | jq -r '.Parameter.Value')" -O /root/sf-installer.zip
               owner: "root"
               group: "root"
               mode: "00700"
@@ -1017,11 +1184,13 @@ Resources:
               group: "root"
               mode: "00700"
           commands:
-            01_unzip_installer:
+            01_download_installer:
+              command: /root/download-sf-installer.sh
+            02_unzip_installer:
               command: unzip -o /root/sf-installer.zip -d /root/installer
-            02_set_permissions:
+            03_set_permissions:
               command: chmod -R +r,+w,+x /root/installer/*
-            03_download_input:
+            04_download_input:
               command: !Sub /usr/local/bin/aws secretsmanager get-secret-value --secret-id "${InputJsonSecretArn}" | jq '.SecretString | fromjson' > /root/installer/input.json
         install_tm:
           files:
@@ -1087,7 +1256,7 @@ Resources:
         Timeout: PT1H
     Properties:
       IamInstanceProfile: !Ref ServiceFabricInstanceProfile
-      ImageId: !If [FindingAmiAtDeploy, !GetAtt InstanceAMI.ImageId, !Ref AmiId]
+      ImageId: !Sub '{{resolve:ssm:${InstanceAmiId}}}'
       InstanceType: !Ref TmInstanceType
       KeyName: !If [HasKeyName, !Ref KeyPairName, !Ref "AWS::NoValue"]
       BlockDeviceMappings:
@@ -1146,11 +1315,11 @@ Resources:
       AWS::CloudFormation::Init:
         configSets:
           config:
-            - disk_setup
             - aws_cli_setup
             - cloudwatch_agent_setup
             - install_ssm_agent
             - download_sf
+            - disk_setup
             - install_gpu_drivers
         disk_setup:
           files:
@@ -1211,6 +1380,11 @@ Resources:
                             "file_path": "/var/log/cfn-init-cmd.log",
                             "log_group_name": "/aws/ec2/${AWS::StackName}/{instance_id}",
                             "log_stream_name": "cfn-init-cmd"
+                          },
+                          {
+                            "file_path": "/var/log/gpu-install-logs.log",
+                            "log_group_name": "/aws/ec2/${AWS::StackName}/{instance_id}",
+                            "log_stream_name": "gpu-node-installation"
                           }
                         ]
                       }
@@ -1230,14 +1404,19 @@ Resources:
           commands:
             01enable_ssm_agent:
               command: !Sub 'dnf install -y https://s3.${AWS::Region}.amazonaws.com/amazon-ssm-${AWS::Region}/latest/linux_amd64/amazon-ssm-agent.rpm'
+              ignoreErrors: "true"
             02enable_ssm_agent:
               command: systemctl enable amazon-ssm-agent
+              ignoreErrors: "true"
             03start_ssm_agent:
               command: systemctl start amazon-ssm-agent
+              ignoreErrors: "true"
         download_sf:
           files:
-            /root/sf-installer.zip:
-              source: !Ref InstallerDownloadUrl
+            /root/download-sf-installer.sh:
+              content: !Sub |
+                #!/bin/bash -x
+                wget "$(aws ssm get-parameter --name "${InstallerDownloadUrlParameterName}" | jq -r '.Parameter.Value')" -O /root/sf-installer.zip
               owner: "root"
               group: "root"
               mode: "00700"
@@ -1249,11 +1428,13 @@ Resources:
               group: "root"
               mode: "00700"
           commands:
-            01_unzip_installer:
+            01_download_installer:
+              command: /root/download-sf-installer.sh
+            02_unzip_installer:
               command: unzip -o /root/sf-installer.zip -d /root/installer
-            02_set_permissions:
+            03_set_permissions:
               command: chmod -R +r,+w,+x /root/installer/*
-            03_download_input:
+            04_download_input:
               command: !Sub /usr/local/bin/aws secretsmanager get-secret-value --secret-id "${InputJsonSecretArn}" | jq '.SecretString | fromjson' > /root/installer/input.json
         install_gpu_drivers:
           files:
@@ -1274,9 +1455,8 @@ Resources:
 
                 [Service]
                 Type=oneshot
-                ExecStart=/bin/bash /opt/uipath/install-gpu.sh
+                ExecStart=/bin/bash -c "/opt/uipath/install-gpu.sh &> /var/log/gpu-install-logs.log"
                 RemainAfterExit=true
-                StandardOutput=journal
                 User=root
 
                 [Install]
@@ -1289,7 +1469,7 @@ Resources:
                 #!/bin/bash
                 set -eux
 
-                /opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName } --resource GpuEnabledNode --region ${AWS::Region }
+                /opt/aws/bin/cfn-signal -e $1 --stack ${AWS::StackName } --resource GpuEnabledNode --region ${AWS::Region }
               mode: "000744"
               owner: "root"
               group: "root"
@@ -1376,3 +1556,30 @@ Resources:
       Tags:
         - Key: Name
           Value: 'UiPath-ServiceFabric-GpuNode'
+
+
+Outputs:
+  InstanceAMIImageNameSSMParameter:
+    Description: Name of the SSM Parameter that stores the Image Name used for getting the AMI
+    Value: !Ref InstanceAMIImageName
+    Condition: FindingAmiAtDeploy
+  InstanceAMIIdSSMParameter:
+    Description: Name of the SSM Parameter that stores the AMI id
+    Value: !Ref InstanceAmiId
+  AgentAsgName:
+    Description: Agent AutoScalingGroup name
+    Value: !Ref AgentAutoScalingGroup
+    Condition: IsMultiNode
+  ServerAsgName:
+    Description: Server AutoScalingGroup name
+    Value: !Ref ServerAutoScalingGroup
+  ServerLaunchTemplateName:
+    Description: Server AutoScalingGroup Launch Template name
+    Value: !Ref ServerLaunchConfiguration
+  AgentLaunchTemplateName:
+    Description: Agent AutoScalingGroup Launch Template name
+    Value: !Ref AgentLaunchConfiguration
+    Condition: IsMultiNode
+  InstanceIamRoleArn:
+    Description: Iam Role used by deployed EC2 instamces
+    Value: !If [DeployIam, !GetAtt ServiceFabricIamRole.Arn, !Ref IamRoleArn]
