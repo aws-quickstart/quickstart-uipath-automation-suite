@@ -27,11 +27,13 @@ Metadata:
           default: Automation Suite deployment configuration
         Parameters:
           - MultiNode
+          - EnableBackup
           - UseLevel7LoadBalancer
           - UiPathVersion
           - InstallerDownloadUrl
           - AddGpu
           - ExtraConfigKeys
+          - SelfSignedCertificateValidity
       - Label:
           default: Automation Suite services
         Parameters:
@@ -39,6 +41,7 @@ Metadata:
           - AutomationHub
           - AutomationOps
           - Insights
+          - DataService
           - TestManager
           - AiCenter
           - BusinessApps
@@ -82,6 +85,8 @@ Metadata:
         default: IAM Role name
       MultiNode:
         default: Deployment type
+      EnableBackup:
+        default: Enable cluster backup
       UseLevel7LoadBalancer:
         default: Load Balancer
       UiPathVersion:
@@ -90,6 +95,8 @@ Metadata:
         default: Installer download URL
       ExtraConfigKeys:
         default: Extra configuration keys
+      SelfSignedCertificateValidity:
+        default: Validity of the self signed certificate
       ActionCenter:
         default: Action Center
       AutomationHub:
@@ -100,6 +107,8 @@ Metadata:
         default: Insights
       TestManager:
         default: Test Manager
+      DataService:
+        default: Data Service
       AiCenter:
         default: AI Center
       BusinessApps:
@@ -173,6 +182,13 @@ Parameters:
     AllowedValues:
       - "Single Node"
       - "Multi Node"
+  EnableBackup:
+    Description: Choose false to disable cluster backup.
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
   UseLevel7LoadBalancer:
     Description: Select either an Application Load Balancer (ALB) or a Network Load Balancer (NLB)
     Type: String
@@ -183,17 +199,27 @@ Parameters:
   UiPathVersion:
     Description: UiPath version to install
     Type: String
-    Default: '2021.10.3'
+    Default: '2022.4.0'
     AllowedValues:
-      - '2021.10.3'
+      - '2022.4.0'
   InstallerDownloadUrl:
-    Description: Custom URL for installer download. Leave empty to use the UiPathVersion, provide an URL to override the download location.
+    Description: Custom URL for installer download. Leave empty to use the UiPathVersion, provide an URL to override the version.
     Type: String
     Default: ""
   ExtraConfigKeys:
     Description: Extra configuration keys to add to the cluster config. Leave empty to use default config.
     Type: String
     Default: ""
+  SelfSignedCertificateValidity:
+    Description: Validity of the self signed certificate in days, used by the deployment to encrypt traffic inside the VPC.
+    Type: String
+    Default: "1825"
+    AllowedValues:
+      - "90"
+      - "365"
+      - "730"
+      - "1825"
+      - "3650"
   ActionCenter:
     Description: Choose false to disable Action Center installation.
     Type: String
@@ -224,6 +250,13 @@ Parameters:
       - 'false'
   TestManager:
     Description: Choose false to disable Test Manager installation.
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  DataService:
+    Description: Choose false to disable Data Service installation.
     Type: String
     Default: 'true'
     AllowedValues:
@@ -329,7 +362,7 @@ Parameters:
   QSS3BucketRegion:
     Default: us-east-1
     Description: >-
-       AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. Do not modify.
+      AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. Do not modify.
     Type: String
     AllowedPattern: (us(-gov)?|ap|ca|cn|eu|sa)-(central|(north|south)?(east|west)?)-\d
     ConstraintDescription: Must be a valid AWS Region code.
@@ -343,6 +376,15 @@ Parameters:
       S3 key prefix that is used to simulate a directory for your copy of the
       Quick Start assets. Do not modify.
     Type: String
+  AcceptLicenseAgreement:
+    Description: >-
+      Use of paid UiPath products and services is subject to the licensing agreement executed between you and UiPath.
+      Unless otherwise indicated by UiPath, use of free UiPath products is subject to the associated licensing agreement available here: https://www.uipath.com/legal/trust-and-security/legal-terms (or successor website).
+      Type true in the text input field to confirm that you agree to the applicable licensing agreement.
+    Type: String
+    AllowedPattern: ^true$
+    ConstraintDescription: >-
+      In order to continue you must accept the License Agreement.
 Conditions:
   UsingDefaultBucket: !Equals
     - !Ref QSS3BucketName
@@ -399,16 +441,20 @@ Resources:
           - - !GetAtt NetworkStack.Outputs.PublicSubnet1ID
             - !GetAtt NetworkStack.Outputs.PublicSubnet2ID
             - !If [ 3AZCondition, !GetAtt NetworkStack.Outputs.PublicSubnet3ID, !Ref "AWS::NoValue" ]
+        NumberOfAZs: !Ref NumberOfAZs
         MultiNode: !Ref MultiNode
+        EnableBackup: !Ref EnableBackup
         UseLevel7LoadBalancer: !Ref UseLevel7LoadBalancer
         PerformInstallation: "true"
         AddGpu: !Ref AddGpu
         GpuAmiId: !Ref GpuAmiId
         ExtraConfigKeys: !Ref ExtraConfigKeys
+        SelfSignedCertificateValidity: !Ref SelfSignedCertificateValidity
         UiPathFQDN: !Ref UiPathFQDN
         ActionCenter: !Ref ActionCenter
         AutomationHub: !Ref AutomationHub
         AutomationOps: !Ref AutomationOps
+        DataService: !Ref DataService
         Insights: !Ref Insights
         TestManager: !Ref TestManager
         AiCenter: !Ref AiCenter
@@ -430,6 +476,7 @@ Resources:
         DeployBastion: !Ref DeployBastion
         IamRoleArn: !Ref IamRoleArn
         IamRoleName: !Ref IamRoleName
+        AcceptLicenseAgreement: !Ref AcceptLicenseAgreement
 
 Outputs:
   InterfaceTour:

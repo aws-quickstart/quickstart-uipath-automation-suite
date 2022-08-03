@@ -97,12 +97,12 @@ Parameters:
   UiPathVersion:
     Description: UiPath version to install
     Type: String
-    Default: '2021.10.3'
+    Default: '2022.4.0'
     AllowedValues:
-      - '2021.10.3'
+      - '2022.4.0'
   ServiceProfile:
     Description: >-
-      Choose Default platform to install Orchestrator, Action Center, Test Manager, Insights, Automation Hub, Automation Ops.
+      Choose Default platform to install Orchestrator, Action Center, Test Manager, Insights, Automation Hub, Automation Ops, Data Service.
       Choose Entire platform to additionally install Apps, AI Center, Task Mining, Document Understanding.
     Type: String
     Default: 'Default platform'
@@ -153,6 +153,15 @@ Parameters:
       S3 key prefix that is used to simulate a directory for your copy of the
       Quick Start assets. Do not modify.
     Type: String
+  AcceptLicenseAgreement:
+    Description: >-
+      Use of paid UiPath products and services is subject to the licensing agreement executed between you and UiPath.
+      Unless otherwise indicated by UiPath, use of free UiPath products is subject to the associated licensing agreement available here: https://www.uipath.com/legal/trust-and-security/legal-terms (or successor website).
+      Type true in the text input field to confirm that you agree to the applicable licensing agreement.
+    Type: String
+    AllowedPattern: ^true$
+    ConstraintDescription: >-
+      In order to continue you must accept the License Agreement.
 Conditions:
   UsingDefaultBucket: !Equals
     - !Ref QSS3BucketName
@@ -212,7 +221,9 @@ Resources:
           - - !GetAtt NetworkStack.Outputs.PublicSubnet1ID
             - !GetAtt NetworkStack.Outputs.PublicSubnet2ID
             - !If [3AZCondition, !GetAtt NetworkStack.Outputs.PublicSubnet3ID, !Ref "AWS::NoValue"]
+        NumberOfAZs: !Ref NumberOfAZs
         MultiNode: !Ref MultiNode
+        EnableBackup: "true"
         UseLevel7LoadBalancer: !Ref UseLevel7LoadBalancer
         PerformInstallation: "true"
         AddGpu: !Ref AddGpu
@@ -221,6 +232,7 @@ Resources:
         AutomationHub: "true"
         AutomationOps: "true"
         Insights: "true"
+        DataService: "true"
         TestManager: "true"
         AiCenter: !If [IsExtendedPlatform, "true", "false"]
         BusinessApps: !If [IsExtendedPlatform, "true", "false"]
@@ -231,6 +243,7 @@ Resources:
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         QSS3BucketRegion: !Ref QSS3BucketRegion
         UiPathVersion: !Ref UiPathVersion
+        AcceptLicenseAgreement: !Ref AcceptLicenseAgreement
 
 Outputs:
   InterfaceTour:
