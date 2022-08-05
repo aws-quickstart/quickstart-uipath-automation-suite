@@ -1,15 +1,20 @@
-// If no preparation is required, remove this content.
+= Prepare your AWS account
+:doctype: book
 
-==== Prepare your AWS account
+If you don't already have an AWS account, create one by following the https://aws.amazon.com/[step-by-step instructions]. Your AWS account is automatically signed up for all AWS services. You are charged only for the services you use.
 
-Verify that your AWS account has the permissions required to create the resources listed in the link:#_resource_quotas[Resource quotas] section of this guide.
+== Amazon EC2 key pairs
 
-// Describe any setup required in the AWS account prior to template launch.
+You need at least one EC2 key pair in the AWS account in the Region where you plan to deploy the Quick Start. To create a key pair, see https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html[Amazon EC2 key pairs and Linux instances].
 
-==== Prepare your {partner-company-name} account
+Take note of the key-pair name as it is needed during the deployment.
 
-// Describe any setup required in the partner portal/account prior to template launch.
+NOTE:  For testing or evaluation purposes, we recommend creating a new key pair instead of using an existing one.
 
-==== Prepare for the deployment
+== Valid domain name
 
-// Describe any preparation required to complete the product build, such as obtaining licenses or placing files in S3.
+This Quick Start requires you to have established ownership of the parent domain under which the web application will be served. If you want to register a domain, see https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/domain-register-update.html[Registering a public domain].
+
+If you have registered the domain using AWS Route 53, then the hosted zone is preconfigured, and no additional configuration is necessary.
+
+Otherwise, you should set up a hosted zone in your AWS account, with the required name server, start of authority, CNAME, and text records. For further details on how to create a public hosted zone, see https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/AboutHZWorkingWith.html[Working with public hosted zones].

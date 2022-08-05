@@ -1,6 +1,3 @@
-// Replace the content in <>
-// For example: “familiarity with basic concepts in networking, database operations, and data encryption” or “familiarity with <software>.”
-// Include links if helpful. 
-// You don't need to list AWS services or point to general info about AWS; the boilerplate already covers this.
+This deployment guide requires a moderate level of familiarity with AWS services. If you're new to AWS, visit the https://aws.amazon.com/getting-started/[Getting Started Resource Center] and the https://aws.amazon.com/training/[AWS Training and Certification website]. These sites provide materials for learning how to design, deploy, and operate your infrastructure and applications on the AWS Cloud.
 
-This Quick Start also assumes familiarity with <knowledge expectations specific to this Quick Start>.
+This Quick Start also assumes familiarity with AWS Services listed in the <<_resource_quotas,Resource quotas>> section of this guide. For a detailed diagram and description of the architecture, see <<_architecture,Deployment architecture on AWS>>.

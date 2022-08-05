@@ -1,9 +1,8 @@
-// Edit this placeholder text to accurately describe your architecture.
+== Deployment options
 
-This Quick Start provides two deployment options:
+This Quick Start provides the following deployment options:
 
-* *Deploy {partner-product-short-name} into a new VPC*. This option builds a new AWS environment consisting of the VPC, subnets, NAT gateways, security groups, bastion hosts, and other infrastructure components. It then deploys {partner-product-short-name} into this new VPC.
-* *Deploy {partner-product-short-name} into an existing VPC*. This option provisions {partner-product-short-name} in your existing AWS infrastructure.
-
-The Quick Start provides separate templates for these options. It also lets you configure Classless Inter-Domain Routing (CIDR) blocks, instance types, and {partner-product-short-name} settings, as discussed later in this guide.
-
+* *Deploy UiPath Automation Suite into a new VPC*. This option builds a new AWS environment that consists of the VPC, subnets, NAT gateways, security groups, bastion hosts, and other infrastructure components. The UiPath Automation Suite is then deployed directly into this new VPC. To set up the networking and routing infrastructure, you only need to provide the CIDR block for the VPC that you want to create. This deployment option lets you choose between two configuration approaches, depending on the number of parameters you can configure:
+ ** basic
+ ** in-depth
+* *Deploy UiPath Automation Suite into an existing VPC*. With this option, resources are provisioned into an existing AWS VPC, and Automation Suite is deployed there.

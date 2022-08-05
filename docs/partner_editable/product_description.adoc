@@ -1,5 +1,8 @@
-// Replace the content in <>
-// Briefly describe the software. Use consistent and clear branding. 
-// Include the benefits of using the software on AWS, and provide details on usage scenarios.
+With UiPath Automation Suite, you can enjoy the benefits of both a single-node evaluation mode and a multi-node HA-ready production profile with built-in HA, configuration, and backup.
 
-<Describe how the software works on AWS.>
+What Automation Suite includes:
+
+* *Most server products* and any new products shipping in Automation Cloud first.
+* *All shared suite capabilities* that enable you to easily configure the integration with existing enterprise systems, such as AD, AAD, or SAML, across all products; a common experience is offered across the suite for the user, tenant, external applications, and license management.
+* *Common end user portal*.
+* *Kubernetes-based infrastructure, cluster management, and monitoring tools*, all preconfigured, dedicated to and optimized for UiPath. This enables running all the products at scale and with HA. This means you do not have to design, configure, and validate which Kubernetes versions and components for routing, storage, etc., work well with the UiPath services.

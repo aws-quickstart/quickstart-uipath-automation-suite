@@ -1,7 +1,1 @@
-// Replace the content in <>
-// Identify your target audience and explain how/why they would use this Quick Start.
-//Avoid borrowing text from third-party websites (copying text from AWS service documentation is fine). Also, avoid marketing-speak, focusing instead on the technical aspect.
-
-This guide provides instructions for deploying the {partner-product-short-name} Quick Start reference architecture on the AWS Cloud.
-
-This Quick Start is for users who <target audience and usage scenario>
+This Quick Start reference deployment guide provides step-by-step instructions for deploying Automation Suite on the AWS Cloud. UiPath Automation Suite enables you to deploy the full UiPath automation platform in a Linux environment.
