@@ -24,7 +24,7 @@ project:
   - us-west-2
   shorten_stack_name: true
   s3_regional_buckets: true
-  package_lambda: false
+  package_lambda: true
   lambda_source_path: functions/source
   lambda_zip_path: functions/packages
 
