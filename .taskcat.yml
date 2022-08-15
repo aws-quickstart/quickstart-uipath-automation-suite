@@ -24,7 +24,7 @@ project:
   - us-west-2
   shorten_stack_name: true
   s3_regional_buckets: true
-  package_lambda: false
+  package_lambda: true
   lambda_source_path: functions/source
   lambda_zip_path: functions/packages
 
@@ -39,5 +39,6 @@ tests:
       UiPathFQDN: "$[taskcat_random-string]<<override>>"
       MultiNode: "Single Node"
       UseLevel7LoadBalancer: 'ALB'
-      UiPathVersion: "2021.10.3"
+      UiPathVersion: "2022.4.0"
       ServiceProfile: 'Default platform'
+      AcceptLicenseAgreement: 'true'
