@@ -1,3 +1,11 @@
 //Include any predeployment steps here, such as signing up for a Marketplace AMI or making any changes to a partner account. If there are no predeployment steps, leave this file empty.
 
 == Predeployment steps
+
+=== Valid domain name
+
+This Quick Start requires you to have established ownership of the parent domain under which the web application will be served. If you want to register a domain, see https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/domain-register-update.html[Registering a public domain].
+
+If you have registered the domain using AWS Route 53, then the hosted zone is preconfigured, and no additional configuration is necessary.
+
+Otherwise, you should set up a hosted zone in your AWS account, with the required name server, start of authority, CNAME, and text records. For further details on how to create a public hosted zone, see https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/AboutHZWorkingWith.html[Working with public hosted zones].
