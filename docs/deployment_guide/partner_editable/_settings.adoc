@@ -5,7 +5,7 @@
 :partner-company-name: UiPath
 :doc-month: September
 :doc-year: 2022
-:partner-contributors: Andrei Dorin, {partner-company-name}
+:partner-contributors: Andrei Barbu, Andrei Oprea, {partner-company-name}
 // :other-contributors: Akua Mansa, Trek10
 //:aws-contributors: Janine Singh, AWS IoT Partner team
 :aws-ia-contributors: Shivansh Singh, AWS Integration & Automation team
