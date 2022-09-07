@@ -55,3 +55,89 @@ The following table shows the mappings between deployment and possible instance 
 | Complete multi-node
 | `+c5a.8xlarge+`, `+c5.9xlarge+`, `+m5.8xlarge+`, `+m5a.8xlarge+`
 |===
+
+=== Security groups and firewalls
+
+When Amazon EC2 instances are launched, they must be associated with a security group, which acts as a stateful firewall. You have complete control over the security group's inbound and outbound network traffic. You can build granular rules that are scoped by protocol, port number, and source/destination IP address, or other security groups. By default, all outbound traffic from security group is permitted. Inbound traffic, however, must be configured to allow the appropriate traffic to reach your instances. We recommend that you tightly control inbound traffic. Doing this reduces the attack surface of your EC2 instances yet leaves the following ports open for application communication.
+
+* Automation Suite ports:
+
+|===
+| Port | Protocol | Purpose
+
+| 22
+| TCP
+| For SSH  (cluster management debugging)
+
+| 443
+| TCP
+| For HTTPS (accessing Automation Suite)
+
+| 2379
+| TCP
+| etcd client port
+
+| 2380
+| TCP
+| etcd peer port
+
+| 6443
+| TCP
+| For accessing Kube API using HTTPS, and required for node joining
+
+| 8472
+| TCP
+| Required for Flannel (VXLAN)
+
+| 9345
+| TCP
+| For accessing Kube API using HTTP, required for node joining
+
+| 10250
+| TCP
+| kubelet / metrics server
+
+| 30000-32767
+| TCP
+| Internal communication between nodes in a cluster
+|===
+
+* Other ports:
+ ** 2049 - NFS service
+ ** 1443 - RDS database instance port
+
+This Quick Start configures the following security groups:
+
+|===
+| Security group | Associated with | Inbound source | Ports
+
+| ServiceFabricSecurityGroup
+| Server and Agent Autoscaling Groups and dedicated EC2 instances
+| Private subnets CIDR
+| Inbound: 443, 22, 6443, 9345, 8472, 10250, 2379, 2380, 8472, 30000-32767 +
+Outbound: any ports
+
+| BastionSecurityGroup
+| Bastion host
+| 0.0.0.0/0
+| Inbound: 22 +
+Outbound: any ports
+
+| DbSecurityGroup
+| RDS database instance
+| Private subnets CIDR
+| Inbound: 1443 +
+Outbound: any ports
+
+| SharedStorageSecurityGroup
+| EFS volume
+| Private subnets CIDR
+| Inbound: 2049 +
+Outbound: any ports
+
+| ELBSecurityGroup
+| Application Load Balancer
+| 0.0.0.0/0
+| Inbound: 443 +
+Outbound: 443
+|===
