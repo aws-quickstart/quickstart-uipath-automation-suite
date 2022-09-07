@@ -9,6 +9,7 @@ This Quick Start deploys {partner-product-name} on the AWS Cloud. This guide cov
 * *Common end user portal*.
 * *Kubernetes-based infrastructure, cluster management, and monitoring tools*, all preconfigured, dedicated to and optimized for UiPath. This enables running all the products at scale and with HA. This means you do not have to design, configure, and validate which Kubernetes versions and components for routing, storage, etc., work well with the UiPath services.
 
+To customize {partner-product-name} for your business, IT, and security requirements, consult the https://docs.uipath.com/automation-suite/docs/[UiPath Documentation Portal].
 // For advanced information about the product, troubleshooting, or additional functionality, refer to the https://{quickstart-github-org}.github.io/{quickstart-project-name}/operational/index.html[Operational Guide^].
 
 // For information about using this Quick Start for migrations, refer to the https://{quickstart-github-org}.github.io/{quickstart-project-name}/migration/index.html[Migration Guide^].
