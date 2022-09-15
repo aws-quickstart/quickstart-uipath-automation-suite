@@ -23,8 +23,10 @@ As shown in <<architecture1>>, this Quick Start sets up the following:
  ** An Application Load Balancer or a Network Load Balancer to balance 443 inbound traffic between all Kubernetes nodes.
  ** An internal Network Load Balancer to balance 6443 (the kube API) and 9345 (the RKE2 registration address) traffic between the Kubernetes server nodes.
  ** Security groups for fine-grained access for the Kubernetes server nodes, as well as the agent nodes.
+* AWS Elastic File System for storing the backup data.
 * AWS Certificate Manager for domain registration with a Secure Sockets Layer certificate.
 * Amazon Route 53 as Domain Name System provider to route traffic to the Application Load Balancer.
+* AWS Secrets Manager for secure storage of cluter configuration and platform generated credentials.
 * Multiple AWS Identity and Access Management (IAM) roles granting access to various operations required during deployment and installation.
 
 [.small]#* The template that deploys this Quick Start into an existing VPC skips the components marked by asterisks and prompts you for your existing VPC configuration.#
