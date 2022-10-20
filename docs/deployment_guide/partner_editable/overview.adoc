@@ -1,15 +1,15 @@
-This Quick Start deploys {partner-product-name} on the AWS Cloud. This guide covers the steps necessary to deploy this Quick Start.
+This Quick Start deploys {partner-product-name} on the AWS Cloud. This guide covers the steps necessary to deploy this Partner Solution.
 
-{partner-product-name} enables you to deploy the full UiPath automation platform in a Linux environment. With{partner-product-name}, you can enjoy the benefits of both a single-node evaluation mode and a multi-node HA-ready production profile with built-in HA, configuration, and backup.
+Using {partner-product-short-name}, you can deploy the full {partner-company-name} Automation Platform in a Linux environment that supports both a single-node evaluation mode and a multi-node, HA-ready production profile with built-in HA, configuration, and backup.
 
-{partner-product-name} includes:
+{partner-product-short-name} includes:
 
-* *Most server products* and any new products shipping in Automation Cloud first.
-* *All shared suite capabilities* that enable you to easily configure the integration with existing enterprise systems, such as AD, AAD, or SAML, across all products; a common experience is offered across the suite for the user, tenant, external applications, and license management.
-* *Common end user portal*.
-* *Kubernetes-based infrastructure, cluster management, and monitoring tools*, all preconfigured, dedicated to and optimized for UiPath. This enables running all the products at scale and with HA. This means you do not have to design, configure, and validate which Kubernetes versions and components for routing, storage, etc., work well with the UiPath services.
+* Most server products and any new products shipping in {partner-product-short-name} first.
+* All shared suite capabilities that allow you to configure the integration with existing enterprise systems, such as AD, AAD, or SAML, across all products.
+* A common end user portal.
+* Kubernetes-based infrastructure, cluster management, and monitoring tools, all preconfigured, dedicated to and optimized for {partner-company-name}.
 
-To customize {partner-product-name} for your business, IT, and security requirements, consult the https://docs.uipath.com/automation-suite/docs/[UiPath Documentation Portal].
+For more information about customizing {partner-product-short-name} for your business, IT, and security requirements, refer to the https://docs.uipath.com/automation-suite/docs/[UiPath documentation portal^].
 // For advanced information about the product, troubleshooting, or additional functionality, refer to the https://{quickstart-github-org}.github.io/{quickstart-project-name}/operational/index.html[Operational Guide^].
 
 // For information about using this Quick Start for migrations, refer to the https://{quickstart-github-org}.github.io/{quickstart-project-name}/migration/index.html[Migration Guide^].

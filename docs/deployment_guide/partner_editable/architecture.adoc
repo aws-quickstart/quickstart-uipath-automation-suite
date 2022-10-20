@@ -1,43 +1,43 @@
 :xrefstyle: short
 
-Deploying this Quick Start with default parameters builds the following {partner-product-short-name} environment in the
+Deploying this Partner Solution with default parameters builds the following {partner-product-short-name} environment in the
 AWS Cloud.
 
 // Replace this example diagram with your own. Follow our wiki guidelines: https://w.amazon.com/bin/view/AWS_Quick_Starts/Process_for_PSAs/#HPrepareyourarchitecturediagram. Upload your source PowerPoint file to the GitHub {deployment name}/docs/images/ directory in its repository.
 
 [#architecture1]
-.Quick Start architecture for {partner-product-short-name} on AWS
-image::../docs/deployment_guide/images/architecture_diagram.png[Architecture]
+.Partner Solution architecture for {partner-product-short-name} on AWS
+image::../docs/deployment_guide/images/uipath-automation-suite-architecture-diagram.png[Architecture]
 
-As shown in <<architecture1>>, this Quick Start sets up the following:
+As shown in <<architecture1>>, this Partner Solution sets up the following:
 
 * A highly available architecture that spans two or more Availability Zones.
 * A virtual private cloud (VPC) configured with public and private subnets, according to AWS best practices, to provide you with your own virtual network on AWS.
 * In the public subnets:
- ** A Linux Bastion host to control inbound SSH (port 22) access to Amazon Elastic Compute Cloud (Amazon EC2) instances in the private subnets.
- ** Security groups for fine-grained inbound access to Bastion host instance.
+ ** A Linux bastion host to control inbound SSH access (port 22) to Amazon Elastic Compute Cloud (Amazon EC2) instances in the private subnets.
+ ** Bastion security group for fine-grained inbound access to the bastion host instance.
 * In the private subnets:
- ** An Amazon EC2 Auto Scaling group with Kubernetes server nodes. Nodes are hosted on Amazon EC2 instances running RedHat.
- ** An Amazon EC2 Auto Scaling group with Kubernetes agent nodes. Nodes are hosted on Amazon EC2 instances running RedHat.
- ** A database subnet group for Amazon Relational Database Service (Amazon RDS) DB instances running SQL Server.
+ ** Security groups for fine-grained access to the Kubernetes server and agent nodes.
  ** An Application Load Balancer or a Network Load Balancer to balance 443 inbound traffic between all Kubernetes nodes.
- ** An internal Network Load Balancer to balance 6443 (the kube API) and 9345 (the RKE2 registration address) traffic between the Kubernetes server nodes.
- ** Security groups for fine-grained access for the Kubernetes server nodes, as well as the agent nodes.
-* AWS Elastic File System for storing the backup data.
-* AWS Certificate Manager for domain registration with a Secure Sockets Layer certificate.
-* Amazon Route 53 as Domain Name System provider to route traffic to the Application Load Balancer.
-* AWS Secrets Manager for secure storage of cluter configuration and platform generated credentials.
+ ** An Amazon EC2 Auto Scaling group with Kubernetes agent nodes. Nodes are hosted on Amazon EC2 instances running RedHat.
+ ** An Amazon EC2 Auto Scaling group with Kubernetes server nodes. Nodes are hosted on Amazon EC2 instances running RedHat.
+ ** An internal Network Load Balancer to balance 6443 (the Kubernetes API) and 9345 (the RKE2 registration address) traffic between the Kubernetes server nodes.
+ ** A database subnet security group for Amazon Relational Database Service (Amazon RDS) database instances running Microsoft SQL Server.
+ * Amazon Elastic File System (Amazon EFS) for storing backup data.
+* AWS Certificate Manager (ACM) for domain registration with an SSL certificate.
+* Amazon Route 53 as Domain Name System (DNS) provider to route traffic to the Application Load Balancer.
+* AWS Secrets Manager for secure storage of cluster configuration and platform-generated credentials.
 * Multiple AWS Identity and Access Management (IAM) roles granting access to various operations required during deployment and installation.
 
-[.small]#* The template that deploys this Quick Start into an existing VPC skips the components marked by asterisks and prompts you for your existing VPC configuration.#
+[.small]#* The template that deploys this Partner Solution into an existing VPC skips the components marked by asterisks and prompts you for your existing VPC configuration.#
 
 === Deployment and instance type mapping
 
 The template dynamically computes the hardware needed for the deployment as follows:
 
-* Depending on the services installed (basic or complete product selection), it sets minimum requirements at cluster level.
-* Depending on the deployment profile (multi-node or single-node profile), it sets minimum requirements for a single VM.
-* Selects the instance types based on their availability in the region you deploy and the aforementioned requirements.
+* Depending on the services installed (basic or complete product selection), it sets minimum requirements for a cluster.
+* Depending on the deployment profile (multi-node or single-node profile), it sets minimum requirements for a single virtual machine (VM).
+* Selects the instance types based on their availability in the Region you deploy and the requirements for the cluster or single VM.
 
 The following table shows the mappings between deployment and possible instance types:
 
@@ -60,9 +60,9 @@ The following table shows the mappings between deployment and possible instance 
 
 === Security groups and firewalls
 
-When Amazon EC2 instances are launched, they must be associated with a security group, which acts as a stateful firewall. You have complete control over the security group's inbound and outbound network traffic. You can build granular rules that are scoped by protocol, port number, and source/destination IP address, or other security groups. By default, all outbound traffic from security group is permitted. Inbound traffic, however, must be configured to allow the appropriate traffic to reach your instances. We recommend that you tightly control inbound traffic. Doing this reduces the attack surface of your EC2 instances yet leaves the following ports open for application communication.
+When Amazon EC2 instances are launched, they must be associated with a security group, which acts as a stateful firewall. You have complete control over the security group's inbound and outbound network traffic. You can build granular rules that are scoped by protocol, port number, and source/destination IP address, or other security groups. By default, all outbound traffic from security groups is permitted. Inbound traffic, however, must be configured to allow the appropriate traffic to reach your instances. You should tightly control inbound traffic to reduce the attack surface of your EC2 instances while leaving the following ports open for application communication.
 
-* Automation Suite ports:
+* {partner-product-short-name} ports:
 
 |===
 | Port | Protocol | Purpose
@@ -73,7 +73,7 @@ When Amazon EC2 instances are launched, they must be associated with a security 
 
 | 443
 | TCP
-| For HTTPS (accessing Automation Suite)
+| For HTTPS (accessing {partner-product-short-name})
 
 | 2379
 | TCP
@@ -85,7 +85,7 @@ When Amazon EC2 instances are launched, they must be associated with a security 
 
 | 6443
 | TCP
-| For accessing Kube API using HTTPS, and required for node joining
+| For accessing Kubernetes API using HTTPS, and required for node joining
 
 | 8472
 | TCP
@@ -93,7 +93,7 @@ When Amazon EC2 instances are launched, they must be associated with a security 
 
 | 9345
 | TCP
-| For accessing Kube API using HTTP, required for node joining
+| For accessing Kubernetes API using HTTP, required for node joining
 
 | 10250
 | TCP
@@ -108,13 +108,13 @@ When Amazon EC2 instances are launched, they must be associated with a security 
  ** 2049 - NFS service
  ** 1443 - RDS database instance port
 
-This Quick Start configures the following security groups:
+This Partner Solution configures the following security groups:
 
 |===
 | Security group | Associated with | Inbound source | Ports
 
 | ServiceFabricSecurityGroup
-| Server and Agent Autoscaling Groups and dedicated EC2 instances
+| Server and agent Auto Scaling groups and dedicated EC2 instances
 | Private subnets CIDR
 | Inbound: 443, 22, 6443, 9345, 8472, 10250, 2379, 2380, 8472, 30000-32767 +
 Outbound: any ports

@@ -1,9 +1,9 @@
 // Include details about any licenses and how to sign up. Provide links as appropriate.
 
-There is no cost to use this Quick Start, but you will be billed for any AWS services or resources that this Quick Start deploys. For more information, refer to the https://fwd.aws/rA69w?[AWS Quick Start General Information Guide^].
+There is no cost to use this Partner Solution, but you will be billed for any AWS services or resources that this solution deploys. For more information, refer to the https://fwd.aws/rA69w?[AWS Partner Solution General Information Guide^].
 
-A license for UiPath is required. To sign up, contact https://www.uipath.com/company/contact-us[UiPath sales]. A free 60-day non-production https://www.uipath.com/developers/enterprise-edition-download[trial license] is available.
+A license for {partner-company-name} is required. To sign up, contact https://www.uipath.com/company/contact-us[{partner-company-name} sales^]. A free 60-day non-production https://www.uipath.com/developers/enterprise-edition-download[trial license^] is available.
 
-Manually provide your Automation Suite and UiPath High-Availability add-on license keys after the stack is deployed. For more information, see https://docs.uipath.com/automation-suite/docs/about-licensing[About licensing].
+Manually provide your {partner-product-short-name} and {partner-company-name} High Availability add-on license keys after the stack is deployed. For more information, refer to https://docs.uipath.com/automation-suite/docs/about-licensing[About licensing^].
 
-The Quick Start only uses the Red Hat Enterprise Linux distribution, provided by AWS. An Amazon Machine Image (AMI) subscription is not required.
+The Partner Solution uses only the Red Hat Enterprise Linux distribution, provided by AWS. An Amazon Machine Image (AMI) subscription is not required.
