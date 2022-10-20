@@ -4,12 +4,12 @@
 
 === Amazon EC2 key pairs
 
-You need at least one EC2 key pair in the AWS account in the Region where you plan to deploy the Quick Start. To create a key pair, see https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html[Amazon EC2 key pairs and Linux instances].
+You need at least one EC2 key pair in the AWS account in the Region where you plan to deploy the Partner Solution. To create a key pair, refer to https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html[Amazon EC2 key pairs and Linux instances^].
 
 === Valid domain name
 
-This Quick Start requires you to have established ownership of the parent domain under which the web application will be served. If you want to register a domain, see https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/domain-register-update.html[Registering a public domain].
+This Partner Solution requires you to own the parent domain under which the web application will be served. If you want to register a domain, refer to https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/domain-register-update.html[Registering a public domain^].
 
-If you have registered the domain using AWS Route 53, then the hosted zone is preconfigured, and no additional configuration is necessary.
+If you have registered the domain using Amazon Route 53, then the hosted zone is preconfigured, and no additional configuration is necessary.
 
-Otherwise, you should set up a hosted zone in your AWS account, with the required name server, start of authority, CNAME, and text records. For further details on how to create a public hosted zone, see https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/AboutHZWorkingWith.html[Working with public hosted zones].
+Otherwise, you should set up a hosted zone in your AWS account with the required name server, start of authority, CNAME, and text records. For further details on how to create a public hosted zone, refer to https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/AboutHZWorkingWith.html[Working with public hosted zones^].
