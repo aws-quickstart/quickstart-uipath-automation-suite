@@ -6,7 +6,7 @@ Description: >-
 Metadata:
   UnusedParameter: !Ref AcceptLicenseAgreement
   QuickStartDocumentation:
-    EntrypointName: Launch into a new VPC
+    EntrypointName: Launch into an existing VPC
     Order: "1"
   'AWS::CloudFormation::Interface':
     ParameterGroups:
