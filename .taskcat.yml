@@ -36,7 +36,7 @@ tests:
     parameters:
       AvailabilityZones: "$[taskcat_getaz_3]"
       NumberOfAZs: 3
-      UiPathFQDN: "$[taskcat_random-string]<<override>>"
+      UiPathFQDN: "$[taskcat_random-string]-override"
       MultiNode: "Single Node"
       UseLevel7LoadBalancer: 'ALB'
       UiPathVersion: "2022.4.0"
