@@ -1,10 +1,10 @@
 // Edit this placeholder text as necessary to describe the deployment options.
 
-This Quick Start provides the following deployment options:
+This Partner Solution provides the following deployment options:
 
-* http://qs_launch_permalink[Deploy {partner-product-short-name} into a new VPC^]. This option builds a new AWS environment that consists of the VPC, subnets, NAT gateways, security groups, bastion hosts, and other infrastructure components. It then deploys {partner-product-short-name} into this new VPC. This deployment option lets you choose between two configuration approaches, depending on the number of parameters you can configure:
- ** https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/template?stackName=UiPathAutomationSuite&templateURL=https://uipath-s3-quickstart.s3.amazonaws.com/aws-quickstart-sf-v2022-4-2/templates/main.template.yaml[basic^]
- ** https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/template?stackName=UiPathAutomationSuite&templateURL=https://uipath-s3-quickstart.s3.amazonaws.com/aws-quickstart-sf-v2022-4-2/templates/uipath-detailed.template.yaml[in-depth^]
-* https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/template?stackName=UiPathAutomationSuite&templateURL=https://uipath-s3-quickstart.s3.amazonaws.com/aws-quickstart-sf-v2022-4-2/templates/uipath-sf.template.yaml[Deploy {partner-product-short-name} into an existing VPC^]. This option provisions {partner-product-short-name} in your existing AWS infrastructure.
+* Deploy {partner-product-short-name} into a new VPC. This option builds a new AWS environment that consists of the VPC, subnets, NAT gateways, security groups, bastion hosts, and other infrastructure components. It then deploys {partner-product-short-name} into this new VPC. This deployment option lets you choose between two configuration approaches, depending on the number of parameters you can configure:
+ ** https://fwd.aws/447zn?[Basic version^]: This option is designed to be more prescriptive in nature, as most configuration parameters are provided for you.
+ ** https://fwd.aws/4E99w?[In-depth version^]: This option is designed for organizations that prefer to customize configuration parameters.
+* https://fwd.aws/48DJJ?[Deploy {partner-product-short-name} into an existing VPC^]. This option provisions {partner-product-short-name} in your existing AWS infrastructure.
 
-This Quick Start provides separate templates for these options. It also lets you configure Classless Inter-Domain Routing (CIDR) blocks, instance types, and {partner-product-short-name} settings.
+This Partner Solution provides separate templates for these options. It also lets you configure Classless Inter-Domain Routing (CIDR) blocks, instance types, and {partner-product-short-name} settings.

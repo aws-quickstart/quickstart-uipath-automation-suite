@@ -1,9 +1,9 @@
 :quickstart-project-name: quickstart-uipath-automation-suite
 :quickstart-github-org: aws-quickstart
 :partner-product-name: UiPath Automation Suite
-:partner-product-short-name: UiPath Automation Suite
+:partner-product-short-name: Automation Suite
 :partner-company-name: UiPath
-:doc-month: September
+:doc-month: October
 :doc-year: 2022
 :partner-contributors: Andrei Barbu, Andrei Oprea, {partner-company-name}
 // :other-contributors: Akua Mansa, Trek10
