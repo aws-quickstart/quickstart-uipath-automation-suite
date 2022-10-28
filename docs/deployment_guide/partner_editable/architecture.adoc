@@ -14,13 +14,13 @@ As shown in <<architecture1>>, this Partner Solution sets up the following:
 * A highly available architecture that spans two or more Availability Zones.
 * A virtual private cloud (VPC) configured with public and private subnets, according to AWS best practices, to provide you with your own virtual network on AWS.*
 * In the public subnets:
- ** A Linux bastion host to control inbound SSH access (port 22) to Amazon Elastic Compute Cloud (Amazon EC2) instances in the private subnets.
+ ** A Linux bastion host to control inbound SSH (Secure Shell) access (port 22) to Amazon Elastic Compute Cloud (Amazon EC2) instances in the private subnets.
  ** Bastion security group for fine-grained inbound access to the bastion host instance.
 * In the private subnets:
  ** Security groups for fine-grained access to the Kubernetes server and agent nodes.
  ** An Application Load Balancer or a Network Load Balancer to balance 443 inbound traffic between all Kubernetes nodes.
- ** An Amazon EC2 Auto Scaling group with Kubernetes agent nodes. Nodes are hosted on Amazon EC2 instances running RedHat.
- ** An Amazon EC2 Auto Scaling group with Kubernetes server nodes. Nodes are hosted on Amazon EC2 instances running RedHat.
+ ** An Amazon EC2 Auto Scaling group with Kubernetes agent nodes. Nodes are hosted on Amazon EC2 instances running Linux.
+ ** An Amazon EC2 Auto Scaling group with Kubernetes server nodes. Nodes are hosted on Amazon EC2 instances running Linux.
  ** An internal Network Load Balancer to balance 6443 (the Kubernetes API) and 9345 (the RKE2 registration address) traffic between the Kubernetes server nodes.
  ** A database subnet security group for Amazon Relational Database Service (Amazon RDS) database instances running Microsoft SQL Server.
  * Amazon Elastic File System (Amazon EFS) for storing backup data.
