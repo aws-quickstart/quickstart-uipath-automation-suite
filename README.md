@@ -1,5 +1,5 @@
 
-## quickstart-uipath-uipath-automation-suite—Quick Start
+## UiPath Automation Suite—Partner Solution
 
 For architectural details, step-by-step instructions, and customization options, see the [deployment guide](https://aws-quickstart.github.io/quickstart-uipath-uipath-automation-suite/).
 
