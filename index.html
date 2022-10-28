@@ -994,7 +994,7 @@ AWS Cloud.</p>
 <div class="ulist">
 <ul>
 <li>
-<p>A Linux bastion host to control inbound SSH access (port 22) to Amazon Elastic Compute Cloud (Amazon EC2) instances in the private subnets.</p>
+<p>A Linux bastion host to control inbound SSH (Secure Shell) access (port 22) to Amazon Elastic Compute Cloud (Amazon EC2) instances in the private subnets.</p>
 </li>
 <li>
 <p>Bastion security group for fine-grained inbound access to the bastion host instance.</p>
@@ -1013,10 +1013,10 @@ AWS Cloud.</p>
 <p>An Application Load Balancer or a Network Load Balancer to balance 443 inbound traffic between all Kubernetes nodes.</p>
 </li>
 <li>
-<p>An Amazon EC2 Auto Scaling group with Kubernetes agent nodes. Nodes are hosted on Amazon EC2 instances running RedHat.</p>
+<p>An Amazon EC2 Auto Scaling group with Kubernetes agent nodes. Nodes are hosted on Amazon EC2 instances running Linux.</p>
 </li>
 <li>
-<p>An Amazon EC2 Auto Scaling group with Kubernetes server nodes. Nodes are hosted on Amazon EC2 instances running RedHat.</p>
+<p>An Amazon EC2 Auto Scaling group with Kubernetes server nodes. Nodes are hosted on Amazon EC2 instances running Linux.</p>
 </li>
 <li>
 <p>An internal Network Load Balancer to balance 6443 (the Kubernetes API) and 9345 (the RKE2 registration address) traffic between the Kubernetes server nodes.</p>
@@ -1422,7 +1422,7 @@ Unless you are customizing the Partner Solution templates for your own projects,
 </html>
 <!--
 repo commit:
-4752650ec6e8d02f4c2682b41954fe3e438c903a
+8b099f98bf3c5728d24c34b2f8b7eac485e809ba
 
 submodule config:
  48efbd14b4ef976f2afcee3f080dba016ef15950 docs/boilerplate (heads/main)
