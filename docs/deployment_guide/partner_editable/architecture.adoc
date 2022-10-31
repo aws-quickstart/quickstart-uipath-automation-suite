@@ -51,10 +51,10 @@ The following table shows the mappings between deployment and possible instance 
 | Complete single-node
 | `+c5a.8xlarge+`, `+c5.9xlarge+`, `+m5.8xlarge+`
 
-| Basic multi-node
+| Basic multinode
 | `+c5.4xlarge+`, `+c5a.4xlarge+`, `+m5.4xlarge+`, `+m4.4xlarge+`
 
-| Complete multi-node
+| Complete multinode
 | `+c5a.8xlarge+`, `+c5.9xlarge+`, `+m5.8xlarge+`, `+m5a.8xlarge+`
 |===
 
@@ -62,7 +62,7 @@ The following table shows the mappings between deployment and possible instance 
 
 When Amazon EC2 instances are launched, they must be associated with a security group, which acts as a stateful firewall. You have complete control over the security group's inbound and outbound network traffic. You can build granular rules that are scoped by protocol, port number, and source/destination IP address, or other security groups. By default, all outbound traffic from security groups is permitted. Inbound traffic, however, must be configured to allow the appropriate traffic to reach your instances. You should tightly control inbound traffic to reduce the attack surface of your EC2 instances while leaving the following ports open for application communication.
 
-* {partner-product-short-name} ports:
+{partner-product-short-name} ports:
 
 |===
 | Port | Protocol | Purpose
@@ -104,7 +104,7 @@ When Amazon EC2 instances are launched, they must be associated with a security 
 | Internal communication between nodes in a cluster
 |===
 
-* Other ports:
+Other ports:
  ** 2049 - NFS service
  ** 1443 - RDS database instance port
 
