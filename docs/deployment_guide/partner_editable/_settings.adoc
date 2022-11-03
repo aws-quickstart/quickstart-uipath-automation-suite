@@ -1,5 +1,5 @@
-:quickstart-project-name: quickstart-uipath-automation-suite
-:quickstart-github-org: aws-quickstart
+:partner-solution-project-name: quickstart-uipath-automation-suite
+:partner-solution-github-org: aws-quickstart
 :partner-product-name: UiPath Automation Suite
 :partner-product-short-name: Automation Suite
 :partner-company-name: UiPath
