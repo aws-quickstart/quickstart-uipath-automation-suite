@@ -139,8 +139,8 @@ def create(properties, physical_id):
     ret["server_certificate"]["tls_key_file"] = "/root/server.key"
 
     ret["identity_certificate"] = {}
-    ret["identity_certificate"]["token_signing_cert_file"] = "/root/token_signing_certificate.pfx"
-    ret["identity_certificate"]["token_signing_cert_pass"] = ''.join(random.choice(string.ascii_letters) for i in range(20))
+    ret["identity_certificate"]["token_signing_cert_file"] = "/root/token_signing_certificate.pfx"  # nosec
+    ret["identity_certificate"]["token_signing_cert_pass"] = ''.join(random.choice(string.ascii_letters) for i in range(20))  # nosec
     ret["identity_certificate"]["ldap_cert_authority_file"] = ""
 
     ret['self_signed_cert_validity'] = self_signed_cert_validity
@@ -333,8 +333,8 @@ def update(properties, physical_id):
     ret["server_certificate"]["tls_key_file"] = "/root/server.key"
 
     ret["identity_certificate"] = {}
-    ret["identity_certificate"]["token_signing_cert_file"] = "/root/token_signing_certificate.pfx"
-    ret["identity_certificate"]["token_signing_cert_pass"] = ''.join(random.choice(string.ascii_letters) for i in range(20))
+    ret["identity_certificate"]["token_signing_cert_file"] = "/root/token_signing_certificate.pfx"  # nosec
+    ret["identity_certificate"]["token_signing_cert_pass"] = ''.join(random.choice(string.ascii_letters) for i in range(20))  # nosec
     ret["identity_certificate"]["ldap_cert_authority_file"] = ""
 
     ret['self_signed_cert_validity'] = self_signed_cert_validity
