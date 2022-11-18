@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: >-
   This template creates a multi-Availability Zone, multi-subnet VPC infrastructure with UIPath
   Automation Suite deployed in private subnets, with a load balancer behind Amazon Route 53 in
-  public subnets. This template designed with most configuration parameters already chosen for you.(qs-1r2g4122s)
+  public subnets. (qs-1r2g4122s)
 Metadata:
   QuickStartDocumentation:
     EntrypointName: Launch into a new VPC
@@ -14,23 +14,71 @@ Metadata:
         Parameters:
           - AvailabilityZones
           - NumberOfAZs
+          - DeployBastion
       - Label:
           default: Automation Suite instance configuration
         Parameters:
           - KeyPairName
+          - AmiId
+          - GpuAmiId
+          - IamRoleArn
+          - IamRoleName
       - Label:
           default: Automation Suite deployment configuration
         Parameters:
           - MultiNode
+          - EnableBackup
           - UseLevel7LoadBalancer
           - UiPathVersion
-          - ServiceProfile
+          - InstallerDownloadUrl
           - AddGpu
+          - ExtraConfigKeys
+          - SelfSignedCertificateValidity
+      - Label:
+          default: Automation Suite services
+        Parameters:
+          - Orchestrator
+          - ActionCenter
+          - AutomationHub
+          - AutomationOps
+          - Insights
+          - DataService
+          - TestManager
+          - AiCenter
+          - BusinessApps
+          - DocumentUnderstanding
+          - TaskMining
+          - ASRobots
+          - ProcessMining
+      - Label:
+          default: Automation Suite external Orchestrator configuration
+        Parameters:
+          - UseExternalOrchestrator
+          - OrchestratorURL
+          - IdentityURL
+          - OrchestratorCertificate
+          - IdentityCertificate
+      - Label:
+          default: Automation Suite external Orchestrator configuration
+        Parameters:
+          - UseExternalOrchestrator
+          - OrchestratorURL
+          - IdentityURL
+          - OrchestratorCertificate
+          - IdentityCertificate
       - Label:
           default: DNS or SSL configuration
         Parameters:
           - UiPathFQDN
           - HostedZoneID
+          - AcmCertificateArn
+          - UseInternalLoadBalancer
+      - Label:
+          default: Amazon RDS configuration
+        Parameters:
+          - RDSEngine
+          - RDSVersion
+          - DatabaseKmsKeyId
       - Label:
           default: Partner Solution S3 bucket configuration
         Parameters:
@@ -42,22 +90,84 @@ Metadata:
         default: Availability Zones
       NumberOfAZs:
         default: Number of Availability Zones
+      DeployBastion:
+        default: Deploy bastion host
       KeyPairName:
         default: Instance key pair
+      AmiId:
+        default: Instance AMI ID
+      GpuAmiId:
+        default: GPU instance AMI ID
+      IamRoleArn:
+        default: IAM role ARN
+      IamRoleName:
+        default: IAM role name
       MultiNode:
         default: Deployment type
+      EnableBackup:
+        default: Enable cluster backup
       UseLevel7LoadBalancer:
         default: Load balancer
       UiPathVersion:
         default: Automation Suite version
-      ServiceProfile:
-        default: Automation Suite product selection
+      InstallerDownloadUrl:
+        default: Installer download URL
+      ExtraConfigKeys:
+        default: Extra configuration keys
+      SelfSignedCertificateValidity:
+        default: Validity of the self-signed certificate
+      Orchestrator:
+        default: Orchestrator
+      ActionCenter:
+        default: Action Center
+      AutomationHub:
+        default: Automation Hub
+      AutomationOps:
+        default: Automation Ops
+      Insights:
+        default: Insights
+      TestManager:
+        default: Test Manager
+      DataService:
+        default: Data Service
+      AiCenter:
+        default: AI Center
+      BusinessApps:
+        default: Apps
+      DocumentUnderstanding:
+        default: Document Understanding
+      TaskMining:
+        default: Task Mining
+      ASRobots:
+        default: Automation Suite Robots
+      ProcessMining:
+        default: Process Mining
+      UseExternalOrchestrator:
+        default: Connect AiCenter to an external Orchestrator
+      OrchestratorURL:
+        default: Orchestrator URL
+      IdentityURL:
+        default: Identity URL
+      OrchestratorCertificate:
+        default: Base64 encoded Orchestrator certificate
+      IdentityCertificate:
+        default: Base64 encoded Identity certificate
       AddGpu:
         default: Add GPU-enabled VMs
       UiPathFQDN:
         default: Hosting FQDN
       HostedZoneID:
-        default: ID of Amazon Route 53-hosted zone
+        default: ID of Route 53-hosted zone
+      UseInternalLoadBalancer:
+        default: Use internal load balancer
+      RDSEngine:
+        default: Engine of SQL Server deployed on Amazon RDS
+      RDSVersion:
+        default: Version of SQL Server deployed on Amazon RDS
+      DatabaseKmsKeyId:
+        default: AWS KMS key ID used to encrypt Amazon RDS storage
+      AcmCertificateArn:
+        default: ARN of the ACM-hosted certificate
       QSS3BucketName:
         default: Template-hosting S3 bucket
       QSS3KeyPrefix:
@@ -67,7 +177,7 @@ Metadata:
 Parameters:
   AvailabilityZones:
     Description: >-
-      Choose up to three Availability Zones to use for the VPC subnets.
+      Choose up to three Availability Zones for the VPC subnets.
     Type: "List<AWS::EC2::AvailabilityZone::Name>"
   NumberOfAZs:
     AllowedValues:
@@ -75,18 +185,44 @@ Parameters:
       - '3'
     Default: '2'
     Description: >-
-      The number of Availability Zones to use in the VPC. This number must match the number of zones selected in the Availability Zones parameter.
+      Choose the number of Availability Zones to use in the VPC. This number must match the number of zones selected for the Availability Zones parameter.
     Type: String
   KeyPairName:
     Description: Existing key pair to connect to virtual machine (VM) instances.
     Type: 'AWS::EC2::KeyPair::KeyName'
+  AmiId:
+    Description: |
+      Provide the Amazon Machine Image (AMI) ID to create the EC2 instances of the cluster.
+      Leave empty to determine the AMI ID automatically during deployment.
+    Type: String
+    Default: ''
+  GpuAmiId:
+    Description: |
+     Provide the AMI ID to create the GPU-enabled EC2 instance. Leave empty to determine the AMI ID automatically during deployment.
+    Type: String
+    Default: ''
+  IamRoleArn:
+    Description: Amazon Resource Name (ARN) of a predeployed IAM role with sufficient permissions for the deployment. Leave empty to create a new role automatically during deployment.
+    Type: String
+    Default: ''
+  IamRoleName:
+    Description: Name of a predeployed IAM role with sufficient permissions for the deployment. Leave empty to create a new role automatically during deployment.
+    Type: String
+    Default: ''
   MultiNode:
-    Description: Install Automation Suite on a single node (recommended for evaluation/development purposes) or multi-node (recommended for production purposes) environments.
+    Description: Install Automation Suite on a single node (recommended for evaluation/development purposes) or multinode (recommended for production purposes) environment.
     Type: String
     Default: 'Single Node'
     AllowedValues:
       - "Single Node"
       - "Multi Node"
+  EnableBackup:
+    Description: Choose false to disable cluster backup.
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
   UseLevel7LoadBalancer:
     Description: Choose Application Load Balancer (ALB) or Network Load Balancer (NLB).
     Type: String
@@ -97,18 +233,118 @@ Parameters:
   UiPathVersion:
     Description: UiPath version to install.
     Type: String
-    Default: '2022.4.0'
+    Default: '2022.10.0'
     AllowedValues:
-      - '2022.4.0'
-  ServiceProfile:
-    Description: >-
-      Choose Default platform to install Orchestrator, Action Center, Test Manager, Insights, Automation Hub, Automation Ops, and Data Service.
-      Choose Entire platform to additionally install Apps, AI Center, Task Mining, and Document Understanding.
+      - '2022.10.0'
+  InstallerDownloadUrl:
+    Description: Custom URL for the installer download. Leave empty to use the UiPath version.
     Type: String
-    Default: 'Default platform'
+    Default: ""
+  ExtraConfigKeys:
+    Description: Extra configuration keys to add to the cluster configuration. Leave empty to use the default configuration.
+    Type: String
+    Default: ""
+  SelfSignedCertificateValidity:
+    Description: Validity of the self-signed certificate in days, used by the deployment to encrypt traffic inside the VPC.
+    Type: String
+    Default: "1825"
     AllowedValues:
-      - 'Default platform'
-      - 'Entire platform'
+      - "90"
+      - "365"
+      - "730"
+      - "1825"
+      - "3650"
+  Orchestrator:
+    Description: Choose false to disable Orchestrator installation.
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  ActionCenter:
+    Description: Choose false to disable Action Center installation.
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  Insights:
+    Description: Choose false to disable Insights installation.
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  AutomationHub:
+    Description: Choose false to disable Automation Hub installation.
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  AutomationOps:
+    Description: Choose false to disable Automation Ops installation.
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  TestManager:
+    Description: Choose false to disable Test Manager installation.
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  DataService:
+    Description: Choose false to disable Data Service installation.
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  AiCenter:
+    Description: Choose false to disable AI Center installation.
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  BusinessApps:
+    Description: Choose false to disable Apps installation.
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  DocumentUnderstanding:
+    Description: Choose false to disable Document Understanding installation.
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  TaskMining:
+    Description: Choose false to disable Task Mining installation.
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  ASRobots: 
+    Description: Chose false to disable Automation Suite Robots installation.
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  ProcessMining:
+    Description: Choose false to disable Process Mining installation.
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
   AddGpu:
     Description: >-
       Choose true to add a GPU-enabled VM to the deployment.
@@ -117,23 +353,95 @@ Parameters:
     AllowedValues:
       - 'true'
       - 'false'
+  UseExternalOrchestrator:
+    Description: >-
+      Choose true to connect AiCenter to an external Orchestrator
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  OrchestratorURL:
+    Description: >-
+      URL of the Orchestrator to which AiCenter connects
+    Type: String
+    Default: ''
+  IdentityURL:
+    Description: >-
+      URL of the Identity server used to authorize AiCenter
+    Type: String
+    Default: ''
+  OrchestratorCertificate:
+    Description: >-
+      Base64 encoded Orchestrator certificate
+    Type: String
+    Default: ''
+  IdentityCertificate:
+    Description: >-
+      Base64 encoded Identity certificate
+    Type: String
+    Default: ''
   HostedZoneID:
-    Description: ID of Amazon Route 53-hosted zone.
-    Type: AWS::Route53::HostedZone::Id
+    Description: ID of Route 53-hosted zone Leave empty to pause the deployment once the load balancer was created and manually configure the DNS.
+    Type: String
+    Default: ''
   UiPathFQDN:
     Description: >-
       Fully qualified domain name (FQDN) for Automation Suite.
-      This name must be either a subdomain or a root domain of the ID of the Amazon Route 53-hosted zone parameter.
+      Name must be either a subdomain or root domain of the ID of the Route 53-hosted zone parameter.
     Type: String
     AllowedPattern: '(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-]{0,62}[a-zA-Z0-9]\.)+[a-zA-Z]{2,63}$)'
     ConstraintDescription: >-
       FQDNs can include numbers, lowercase letters, uppercase letters, and hyphens (-).
+  AcmCertificateArn:
+    Description: |
+      ARN of certificate in AWS Certificate Manager (ACM) to use with the ALB.
+      Leave empty to create the public certificate during deployment.
+    Type: String
+    Default: ""
+  UseInternalLoadBalancer:
+    Description: Deploy internal load balancer.
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - 'true'
+      - 'false'
+  DeployBastion:
+    Description: |
+      Deploy a bastion host inside the public subnet.
+      Choose false to skip deploying the bastion host.
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - 'true'
+      - 'false'
+  RDSEngine:
+    Type: String
+    Description: Amazon Relational Database Service (Amazon RDS) SQL engine.
+    Default: "sqlserver-se"
+    AllowedValues:
+      - "sqlserver-ee"
+      - "sqlserver-se"
+      - "sqlserver-web"
+  RDSVersion:
+    Type: String
+    Description: Amazon RDS SQL version.
+    Default: "15.00"
+    AllowedValues:
+      - "15.00"
+      - "14.00"
+      - "13.00"
+  DatabaseKmsKeyId:
+    Type: String
+    Default: ""
+    Description: AWS Key Management Service (AWS KMS) key ID to use for encrypting the Amazon RDS storage. Leave empty to skip encrypting the Amazon RDS storage.
   QSS3BucketName:
     AllowedPattern: '^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$'
     ConstraintDescription: >-
       The S3 bucket name can include numbers, lowercase letters,
       and hyphens (-), but it cannot start or end with a hyphen.
-    Description: Name of the S3 bucket for your copy of the deployment assets. Keep the default
+    Description: >-
+      Name of the S3 bucket for your copy of the deployment assets. Keep the default
       name unless you are customizing the template. Changing the name updates code
       references to point to a new location.
     Type: String
@@ -151,7 +459,7 @@ Parameters:
   QSS3KeyPrefix:
     AllowedPattern: '^[0-9a-zA-Z-/]*/$'
     ConstraintDescription: >-
-     The S3 key prefix can include numbers, lowercase letters, uppercase letters,
+      The S3 key prefix can include numbers, lowercase letters, uppercase letters,
       hyphens (-), underscores (_), periods (.), asterisks (*), single quotes ('),
       open parenthesis ((), close parenthesis ()), and forward slashes (/). End the
       prefix with a forward slash.
@@ -170,7 +478,7 @@ Parameters:
     Type: String
     AllowedPattern: ^true$
     ConstraintDescription: >-
-      You must accept the license agreement.
+      You must accept the License Agreement.
 Conditions:
   UsingDefaultBucket: !Equals
     - !Ref QSS3BucketName
@@ -178,9 +486,6 @@ Conditions:
   3AZCondition: !Equals
     - !Ref NumberOfAZs
     - '3'
-  IsExtendedPlatform: !Equals
-    - !Ref ServiceProfile
-    - 'Entire platform'
 Resources:
   NetworkStack:
     Type: 'AWS::CloudFormation::Stack'
@@ -224,34 +529,55 @@ Resources:
           - ','
           - - !GetAtt NetworkStack.Outputs.PrivateSubnet1AID
             - !GetAtt NetworkStack.Outputs.PrivateSubnet2AID
-            - !If [3AZCondition, !GetAtt NetworkStack.Outputs.PrivateSubnet3AID, !Ref "AWS::NoValue"]
+            - !If [ 3AZCondition, !GetAtt NetworkStack.Outputs.PrivateSubnet3AID, !Ref "AWS::NoValue" ]
         PublicSubnetIDs: !Join
           - ','
           - - !GetAtt NetworkStack.Outputs.PublicSubnet1ID
             - !GetAtt NetworkStack.Outputs.PublicSubnet2ID
-            - !If [3AZCondition, !GetAtt NetworkStack.Outputs.PublicSubnet3ID, !Ref "AWS::NoValue"]
+            - !If [ 3AZCondition, !GetAtt NetworkStack.Outputs.PublicSubnet3ID, !Ref "AWS::NoValue" ]
         NumberOfAZs: !Ref NumberOfAZs
         MultiNode: !Ref MultiNode
-        EnableBackup: "true"
+        EnableBackup: !Ref EnableBackup
         UseLevel7LoadBalancer: !Ref UseLevel7LoadBalancer
         PerformInstallation: "true"
         AddGpu: !Ref AddGpu
+        GpuAmiId: !Ref GpuAmiId
+        ExtraConfigKeys: !Ref ExtraConfigKeys
+        SelfSignedCertificateValidity: !Ref SelfSignedCertificateValidity
         UiPathFQDN: !Ref UiPathFQDN
-        ActionCenter: "true"
-        AutomationHub: "true"
-        AutomationOps: "true"
-        Insights: "true"
-        DataService: "true"
-        TestManager: "true"
-        AiCenter: !If [IsExtendedPlatform, "true", "false"]
-        BusinessApps: !If [IsExtendedPlatform, "true", "false"]
-        DocumentUnderstanding: !If [IsExtendedPlatform, "true", "false"]
-        TaskMining: !If [IsExtendedPlatform, "true", "false"]
+        Orchestrator: !Ref Orchestrator
+        ActionCenter: !Ref ActionCenter
+        AutomationHub: !Ref AutomationHub
+        AutomationOps: !Ref AutomationOps
+        DataService: !Ref DataService
+        Insights: !Ref Insights
+        TestManager: !Ref TestManager
+        AiCenter: !Ref AiCenter
+        BusinessApps: !Ref BusinessApps
+        DocumentUnderstanding: !Ref DocumentUnderstanding
+        TaskMining: !Ref TaskMining
+        ASRobots: !Ref ASRobots
+        UseExternalOrchestrator: !Ref UseExternalOrchestrator
+        OrchestratorURL: !Ref OrchestratorURL
+        IdentityURL: !Ref IdentityURL
+        OrchestratorCertificate: !Ref OrchestratorCertificate
+        IdentityCertificate: !Ref IdentityCertificate
+        ProcessMining: !Ref ProcessMining
         HostedZoneID: !Ref HostedZoneID
         QSS3BucketName: !Ref QSS3BucketName
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
         QSS3BucketRegion: !Ref QSS3BucketRegion
+        InstallerDownloadUrl: !Ref InstallerDownloadUrl
         UiPathVersion: !Ref UiPathVersion
+        RDSEngine: !Ref RDSEngine
+        RDSVersion: !Ref RDSVersion
+        AmiId: !Ref AmiId
+        AcmCertificateArn: !Ref AcmCertificateArn
+        UseInternalLoadBalancer: !Ref UseInternalLoadBalancer
+        DatabaseKmsKeyId: !Ref DatabaseKmsKeyId
+        DeployBastion: !Ref DeployBastion
+        IamRoleArn: !Ref IamRoleArn
+        IamRoleName: !Ref IamRoleName
         AcceptLicenseAgreement: !Ref AcceptLicenseAgreement
 
 Outputs:
@@ -262,7 +588,7 @@ Outputs:
       It is a common organization-level resource from where everyone can access all of your Automation Suite areas: administration pages,
       platform-level pages, service-specific pages, and user-specific pages.
   AutomationSuiteUrl:
-    Description: Automation Suite portalx.
+    Description: Automation Suite portal.
     Value: !Sub "https://${UiPathFQDN}"
   AutomationSuiteSecret:
     Description: Credentials for Automation Suite portal.
@@ -276,7 +602,7 @@ Outputs:
       The settings that you configure from this portal are inherited by all your organizations, and some can be overwritten at the organization level.
     Value: !Sub "https://${UiPathFQDN}"
   HostAdministrationSecret:
-    Description: Credentials for host administration.
+    Description: Credentials for Host Administration.
     Value: !Join
       - ''
       - - !Sub "https://${AWS::Region}.console.aws.amazon.com/secretsmanager/home?region=${AWS::Region}#!/secret?name="
@@ -292,7 +618,7 @@ Outputs:
       - - !Sub "https://${AWS::Region}.console.aws.amazon.com/secretsmanager/home?region=${AWS::Region}#!/secret?name="
         - !GetAtt ServiceFabricStack.Outputs.ArgoCdSecret
   MonitoringFqdn:
-    Description: The monitoring login page.
+    Description:  The Monitoring login page.
     Value: !Sub "https://monitoring.${UiPathFQDN}"
   InputJsonSecret:
     Description: Secret storing the input.json content.
@@ -300,3 +626,6 @@ Outputs:
       - ''
       - - !Sub "https://${AWS::Region}.console.aws.amazon.com/secretsmanager/home?region=${AWS::Region}#!/secret?name="
         - !GetAtt ServiceFabricStack.Outputs.InputJsonSecret
+  ClusterAdministrationURL:
+    Description: The Unified UI for Cluster management page.
+    Value: !Sub "https://${UiPathFQDN}/uipath-management/"
