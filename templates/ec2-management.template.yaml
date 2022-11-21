@@ -296,6 +296,13 @@ Resources:
       Path: /
 
   AgentRemoveInstanceDocument:
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - E9101
+          ignore_reasons:
+            E9101: Abort is a keyword
     Type: AWS::SSM::Document
     Condition: IsMultiNode
     Properties:
@@ -347,6 +354,13 @@ Resources:
               LifecycleActionResult: "CONTINUE"
 
   ServerRemoveInstanceDocument:
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - E9101
+          ignore_reasons:
+            E9101: Abort is a keyword
     Type: AWS::SSM::Document
     Condition: IsMultiNode
     Properties:
@@ -421,6 +435,13 @@ Resources:
       RoleArn: !GetAtt StateMachinesAssumeRole.Arn
   
   RegisterAiCenter:
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - E9101
+          ignore_reasons:
+            E9101: Abort is a keyword
     Type: AWS::SSM::Document
     Condition: UseExternalOrch
     Properties:
@@ -464,6 +485,13 @@ Resources:
                   - '/root/installer/configureUiPathAS.sh aicenter configure --installation-token "{{ IdentityToken }}"'
 
   OnDemandBackup:
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - E9101
+          ignore_reasons:
+            E9101: Abort is a keyword
     Type: AWS::SSM::Document
     Properties:
       DocumentType: Automation
@@ -503,6 +531,13 @@ Resources:
                   - '/root/installer/configureUiPathAS.sh snapshot backup create "asbackup-ondemand-$timestamp" --wait'
 
   OnDemandRestoreDocument:
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - E9101
+          ignore_reasons:
+            E9101: Abort is a keyword
     Type: AWS::SSM::Document
     Properties:
       DocumentType: Automation
@@ -620,6 +655,13 @@ Resources:
               stateMachineArn: !Ref OnDemandRestoreStateMachine
               input: '{{ computeRestoreStepInput.restoreInput }}'
   GetBackupList:
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - E9101
+          ignore_reasons:
+            E9101: Abort is a keyword
     Type: AWS::SSM::Document
     Properties:
       DocumentType: Automation
@@ -658,6 +700,13 @@ Resources:
                   - '/root/installer/configureUiPathAS.sh snapshot list'
   
   UpdateAMIDocument:
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - E9101
+          ignore_reasons:
+            E9101: Abort is a keyword
     Type: AWS::SSM::Document
     Properties:
       DocumentType: Automation
