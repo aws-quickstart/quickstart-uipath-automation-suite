@@ -39,6 +39,5 @@ tests:
       UiPathFQDN: "$[taskcat_random-string]-override"
       MultiNode: "Single Node"
       UseLevel7LoadBalancer: 'ALB'
-      UiPathVersion: "2022.4.0"
-      ServiceProfile: 'Default platform'
+      UiPathVersion: "2022.10.0"
       AcceptLicenseAgreement: 'true'
