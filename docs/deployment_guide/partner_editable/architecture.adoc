@@ -35,7 +35,7 @@ As shown in <<architecture1>>, this Partner Solution sets up the following:
 
 The template dynamically computes the hardware needed for the deployment as follows:
 
-* Depending on the services installed (basic or complete product selection), it sets minimum requirements for a cluster.
+* Depending on the services installed, it sets minimum requirements for a cluster.
 * Depending on the deployment profile (multi-node or single-node profile), it sets minimum requirements for a single virtual machine (VM).
 * Selects the instance types based on their availability in the Region you deploy and the requirements for the cluster or single VM.
 
@@ -45,16 +45,16 @@ The following table shows the mappings between deployment and possible instance 
 |===
 | Deployment type | Instance type
 
-| Basic single-node
+| Single-node, services selection that needs less than 16 CPUs
 | `+c5.4xlarge+`, `+c5a.4xlarge+`, `+m5.4xlarge+`, `+m5a.4xlarge+`
 
-| Complete single-node
+| Single-node, services selection that needs more than 16 CPUs
 | `+c5a.8xlarge+`, `+c5.9xlarge+`, `+m5.8xlarge+`
 
-| Basic multinode
+| Multi-node, services selection that needs less than 48 CPUs
 | `+c5.4xlarge+`, `+c5a.4xlarge+`, `+m5.4xlarge+`, `+m4.4xlarge+`
 
-| Complete multinode
+| Multi-node, services selection that needs more than 48 CPUs
 | `+c5a.8xlarge+`, `+c5.9xlarge+`, `+m5.8xlarge+`, `+m5a.8xlarge+`
 |===
 
