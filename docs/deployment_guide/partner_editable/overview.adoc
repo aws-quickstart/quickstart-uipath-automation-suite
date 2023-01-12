@@ -1,15 +1,1 @@
-This Quick Start deploys {partner-product-name} on the AWS Cloud. This guide covers the steps necessary to deploy this Partner Solution.
-
-Using {partner-product-short-name}, you can deploy the full {partner-company-name} Automation Platform in a Linux environment that supports both a single-node evaluation mode and a multi-node, HA-ready production profile with built-in HA, configuration, and backup.
-
-{partner-product-short-name} includes:
-
-* Most server products and any new products shipping in {partner-product-short-name} first.
-* All shared suite capabilities that allow you to configure the integration with existing enterprise systems, such as AD, AAD, or SAML, across all products.
-* A common end user portal.
-* Kubernetes-based infrastructure, cluster management, and monitoring tools, all preconfigured, dedicated to and optimized for {partner-company-name}.
-
-For more information about customizing {partner-product-short-name} for your business, IT, and security requirements, refer to the https://docs.uipath.com/automation-suite/docs/[UiPath documentation portal^].
-// For advanced information about the product, troubleshooting, or additional functionality, refer to the https://{quickstart-github-org}.github.io/{quickstart-project-name}/operational/index.html[Operational Guide^].
-
-// For information about using this Quick Start for migrations, refer to the https://{quickstart-github-org}.github.io/{quickstart-project-name}/migration/index.html[Migration Guide^].
+This guide covers the information you need to deploy the {partner-product-name} Partner Solution in the AWS Cloud.
