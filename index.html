@@ -889,7 +889,7 @@ p.footer-text a{color:#d7d8d8}
 </div>
 </div>
 <div class="paragraph text-center">
-<p><strong>October 2022</strong><br>
+<p><strong>January 2023</strong><br>
 <em>Andrei Barbu, Andrei Oprea, UiPath</em><br>
 <em>Shivansh Singh, AWS Integration &amp; Automation team</em><br></p>
 </div>
@@ -1055,7 +1055,7 @@ AWS Cloud.</p>
 <div class="ulist">
 <ul>
 <li>
-<p>Depending on the services installed (basic or complete product selection), it sets minimum requirements for a cluster.</p>
+<p>It sets minimum requirements for a cluster.</p>
 </li>
 <li>
 <p>Depending on the deployment profile (multi-node or single-node profile), it sets minimum requirements for a single virtual machine (VM).</p>
@@ -1081,19 +1081,19 @@ AWS Cloud.</p>
 </thead>
 <tbody>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Basic single-node</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Single-node, services selection that needs less than 16 CPUs</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>c5.4xlarge</code>, <code>c5a.4xlarge</code>, <code>m5.4xlarge</code>, <code>m5a.4xlarge</code></p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Complete single-node</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Single-node, services selection that needs more than 16 CPUs</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>c5a.8xlarge</code>, <code>c5.9xlarge</code>, <code>m5.8xlarge</code></p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Basic multinode</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Multi-node, services selection that needs less than 48 CPUs</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>c5.4xlarge</code>, <code>c5a.4xlarge</code>, <code>m5.4xlarge</code>, <code>m4.4xlarge</code></p></td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Complete multinode</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Multi-node, services selection that needs more than 48 CPUs</p></td>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>c5a.8xlarge</code>, <code>c5.9xlarge</code>, <code>m5.8xlarge</code>, <code>m5a.8xlarge</code></p></td>
 </tr>
 </tbody>
@@ -1241,17 +1241,7 @@ Outbound: 443</p></td>
 <div class="ulist">
 <ul>
 <li>
-<p>Deploy Automation Suite into a new VPC. This option builds a new AWS environment that consists of the VPC, subnets, NAT gateways, security groups, bastion hosts, and other infrastructure components. It then deploys Automation Suite into this new VPC. This deployment option lets you choose between two configuration approaches, depending on the number of parameters you can configure:</p>
-<div class="ulist">
-<ul>
-<li>
-<p><a href="https://fwd.aws/447zn?" target="_blank" rel="noopener">Basic version</a>: This option is designed to be more prescriptive in nature, as most configuration parameters are provided for you.</p>
-</li>
-<li>
-<p><a href="https://fwd.aws/4E99w?" target="_blank" rel="noopener">In-depth version</a>: This option is designed for organizations that prefer to customize configuration parameters.</p>
-</li>
-</ul>
-</div>
+<p><a href="https://fwd.aws/447zn?">Deploy Automation Suite into a new VPC</a>. This option builds a new AWS environment that consists of the VPC, subnets, NAT gateways, security groups, bastion hosts, and other infrastructure components. It then deploys Automation Suite into this new VPC.</p>
 </li>
 <li>
 <p><a href="https://fwd.aws/48DJJ?" target="_blank" rel="noopener">Deploy Automation Suite into an existing VPC</a>. This option provisions Automation Suite in your existing AWS infrastructure.</p>
@@ -1309,7 +1299,7 @@ Outbound: 443</p></td>
 <i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
-Unless you are customizing the Partner Solution templates for your own projects, don&#8217;t change the default settings for the following Amazon Simple Storage Service (Amazon S3) parameters: <strong>Partner Solution S3 bucket name</strong>, <strong>Partner Solution S3 bucket Region</strong>, and <strong>Partner Solution S3 key prefix</strong>. Changing these settings automatically updates code references to point to a new Partner Solution location. For more information, refer to the <a href="https://fwd.aws/NwqYA?" target="_blank" rel="noopener">AWS Partner Solution Contributor&#8217;s Guide</a>.
+Unless you&#8217;re customizing the Partner Solution templates or are instructed otherwise in this guide&#8217;s <strong>Predeployment</strong> section, don&#8217;t change the default settings for the following parameters: <code>QSS3BucketName</code>, <code>QSS3BucketRegion</code>, and <code>QSS3KeyPrefix</code>. Changing the values of these parameters will modify code references that point to the Amazon Simple Storage Service (Amazon S3) bucket name and key prefix. For more information, refer to the <a href="https://fwd.aws/NwqYA?" target="_blank" rel="noopener">AWS Partner Solutions Contributor&#8217;s Guide</a>.
 </td>
 </tr>
 </table>
@@ -1399,15 +1389,15 @@ Unless you are customizing the Partner Solution templates for your own projects,
         <!-- We can use document attributes: -->
         <!-- Generated with Asciidoctor v2.0.17. -->
         <a href="https://aws.amazon.com/privacy/">Privacy</a> | <a href="https://aws.amazon.com/terms/">Site terms</a> |
-        &copy; 2022, Amazon Web Services, Inc. or its affiliates and UiPath. All rights reserved.
+        &copy; 2023, Amazon Web Services, Inc. or its affiliates and UiPath. All rights reserved.
     </p>
 </footer>
 </body>
 </html>
 <!--
 repo commit:
-c183ef81d452944a37914e72a34539f2ffdf5b08
+cd2df01e5742625586090614f5a384f9114628ec
 
 submodule config:
- 48efbd14b4ef976f2afcee3f080dba016ef15950 docs/boilerplate (heads/main)
+ 897d0a2f9b90fcdbc9520a2d0d44558d485a5b1e docs/boilerplate (heads/main)
 -->
