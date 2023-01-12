@@ -4,5 +4,4 @@ For architectural details, step-by-step instructions, and customization options,
 
 To post feedback, submit feature ideas, or report bugs, use the **Issues** section of this GitHub repo. 
 
-To submit code for this Partner Solution, see the [Contributor's & Builder's Guide for CloudFormation-based AWS Partner Solutions
-About this guid](https://aws-quickstart.github.io/).
+To submit code for this Partner Solution, see the [Contributor's & Builder's Guide for CloudFormation-based AWS Partner Solutions](https://aws-quickstart.github.io/).
