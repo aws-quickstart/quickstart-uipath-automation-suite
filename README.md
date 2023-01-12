@@ -1,6 +1,6 @@
 ## UiPath Automation Suite on AWS—Partner Solution
 
-For architectural details, step-by-step instructions, and customization options, see the [deployment guide](https://aws-quickstart.github.io/quickstart-uipath-automation-suite/).
+For architectural details, step-by-step instructions, and customization options, see the [deployment guide](https://fwd.aws/b7pPq?).
 
 To post feedback, submit feature ideas, or report bugs, use the **Issues** section of this GitHub repo. 
 
