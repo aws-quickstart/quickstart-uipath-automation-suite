@@ -28,6 +28,7 @@ Metadata:
         Parameters:
           - MultiNode
           - EnableBackup
+          - UseSharedBucket
           - UseLevel7LoadBalancer
           - UiPathVersion
           - InstallerDownloadUrl
@@ -98,6 +99,8 @@ Metadata:
         default: Deployment type
       EnableBackup:
         default: Enable cluster backup
+      UseSharedBucket:
+        default: Use a shared bucket for external storage
       UseLevel7LoadBalancer:
         default: Load balancer
       UiPathVersion:
@@ -215,6 +218,13 @@ Parameters:
     AllowedValues:
       - 'true'
       - 'false'
+  UseSharedBucket:
+    Description: Enable shared bucket across products. Process Mining and Data Service will require a dedicated bucket each if enabled.
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
   UseLevel7LoadBalancer:
     Description: Choose Application Load Balancer (ALB) or Network Load Balancer (NLB).
     Type: String
@@ -225,9 +235,9 @@ Parameters:
   UiPathVersion:
     Description: UiPath version to install.
     Type: String
-    Default: '2022.10.0'
+    Default: '2022.10.2'
     AllowedValues:
-      - '2022.10.0'
+      - '2022.10.2'
   InstallerDownloadUrl:
     Description: Custom URL for the installer download. Leave empty to use the UiPath version.
     Type: String
@@ -530,6 +540,7 @@ Resources:
         NumberOfAZs: !Ref NumberOfAZs
         MultiNode: !Ref MultiNode
         EnableBackup: !Ref EnableBackup
+        UseSharedBucket: !Ref UseSharedBucket
         UseLevel7LoadBalancer: !Ref UseLevel7LoadBalancer
         PerformInstallation: "true"
         AddGpu: !Ref AddGpu
