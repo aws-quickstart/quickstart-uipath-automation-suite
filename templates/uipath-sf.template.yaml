@@ -30,6 +30,7 @@ Metadata:
         Parameters:
           - MultiNode
           - EnableBackup
+          - UseSharedBucket
           - UseLevel7LoadBalancer
           - PerformInstallation
           - UiPathVersion
@@ -107,6 +108,8 @@ Metadata:
         default: Deployment type
       EnableBackup:
         default: Enable cluster backup
+      UseSharedBucket:
+        default: Use a shared bucket for external storage
       UseLevel7LoadBalancer:
         default: Load balancer
       PerformInstallation:
@@ -241,6 +244,13 @@ Parameters:
     AllowedValues:
       - 'true'
       - 'false'
+  UseSharedBucket:
+    Description: Enable shared bucket across products. Process Mining and Data Service will require a dedicated bucket each if enabled.
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
   UseLevel7LoadBalancer:
     Description: Choose Application Load Balancer (ALB) or Network Load Balancer (NLB).
     Type: String
@@ -260,9 +270,9 @@ Parameters:
   UiPathVersion:
     Description: UiPath version to install.
     Type: String
-    Default: '2022.10.0'
+    Default: '2022.10.2'
     AllowedValues:
-      - '2022.10.0'
+      - '2022.10.2'
   InstallerDownloadUrl:
     Description: Custom URL for installer download. Leave empty to use the UiPath version.
     Type: String
@@ -531,6 +541,28 @@ Conditions:
   FindingAmiAtDeploy: !Equals
     - !Ref AmiId
     - ''
+  UsingSharedBucket: !Equals [!Ref UseSharedBucket, "true"]
+  NotUsingSharedBucket: !Not [!Condition UsingSharedBucket]
+  DeployDataServiceStorageBucket: !Equals [!Ref DataService, "true"]
+  DeployProcessMiningStorageBucket: !Equals [!Ref ProcessMining, "true"]
+  DeployOrchestratorStorageBucket: !And
+    - !Equals [!Ref Orchestrator, "true"]
+    - !Condition NotUsingSharedBucket
+  DeployAppsStorageBucket: !And
+    - !Equals [!Ref BusinessApps, "true"]
+    - !Condition NotUsingSharedBucket
+  DeployTestManagerStorageBucket: !And
+    - !Equals [!Ref TestManager, "true"]
+    - !Condition NotUsingSharedBucket
+  DeployAiCenterStorageBucket: !And
+    - !Equals [!Ref AiCenter, "true"]
+    - !Condition NotUsingSharedBucket
+  DeployDocumentUnderstandingStorageBucket: !And
+    - !Equals [!Ref DocumentUnderstanding, "true"]
+    - !Condition NotUsingSharedBucket
+  DeployTaskMiningStorageBucket: !And
+    - !Equals [!Ref TaskMining, "true"]
+    - !Condition NotUsingSharedBucket
 Resources:
   FindAmiLambdaRole:
     Type: 'AWS::IAM::Role'
@@ -658,6 +690,33 @@ Resources:
         QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
 
+  ExternalStorageStack:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      TemplateURL: !Sub
+        - >-
+          https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/external-storage.template.yaml
+        - S3Bucket: !If
+            - UsingDefaultBucket
+            - !Sub '${QSS3BucketName}-${AWS::Region}'
+            - !Ref QSS3BucketName
+          S3Region: !If
+            - UsingDefaultBucket
+            - !Ref 'AWS::Region'
+            - !Ref QSS3BucketRegion
+      Parameters:
+        UseSharedBucket: !Ref UseSharedBucket
+        Orchestrator: !Ref Orchestrator
+        Apps: !Ref BusinessApps
+        TestManager: !Ref TestManager
+        DataService: !Ref DataService
+        AiCenter: !Ref AiCenter
+        DocumentUnderstanding: !Ref DocumentUnderstanding
+        TaskMining: !Ref TaskMining
+        ProcessMining: !Ref ProcessMining
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+
   ServerStack:
     Type: 'AWS::CloudFormation::Stack'
     DependsOn: CreateInputJson
@@ -716,6 +775,17 @@ Resources:
         AddGpu: !Ref AddGpu
         DeployBastion: !Ref DeployBastion
         InstallerDownloadUrlParameterName: !Ref InstallerDownloadUrlSSMParameter
+        SharedStorageBucket: !If [UsingSharedBucket, !GetAtt ExternalStorageStack.Outputs.SharedStorageBucket, '']
+        PlatformStorageBucket: !If [NotUsingSharedBucket, !GetAtt ExternalStorageStack.Outputs.PlatformStorageBucket, '']
+        OrchestratorStorageBucket: !If [DeployOrchestratorStorageBucket, !GetAtt ExternalStorageStack.Outputs.OrchestratorStorageBucket, '']
+        AppsStorageBucket: !If [DeployAppsStorageBucket, !GetAtt ExternalStorageStack.Outputs.AppsStorageBucket, '']
+        TestManagerStorageBucket: !If [DeployTestManagerStorageBucket, !GetAtt ExternalStorageStack.Outputs.TestManagerStorageBucket, '']
+        DataServiceStorageBucket: !If [DeployDataServiceStorageBucket, !GetAtt ExternalStorageStack.Outputs.DataServiceStorageBucket, '']
+        AiCenterStorageBucket: !If [DeployAiCenterStorageBucket, !GetAtt ExternalStorageStack.Outputs.AiCenterStorageBucket, '']
+        DocumentUnderstandingStorageBucket: !If [DeployDocumentUnderstandingStorageBucket, !GetAtt ExternalStorageStack.Outputs.DocumentUnderstandingStorageBucket, '']
+        TaskMiningStorageBucket: !If [DeployTaskMiningStorageBucket, !GetAtt ExternalStorageStack.Outputs.TaskMiningStorageBucket, '']
+        ProcessMiningStorageBucket: !If [DeployProcessMiningStorageBucket, !GetAtt ExternalStorageStack.Outputs.ProcessMiningStorageBucket, '']
+
 
   ConfigureSSLStack:
     Type: AWS::CloudFormation::Stack
@@ -853,6 +923,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt CreateInputJsonFunction.Arn
       RegionName: !Ref 'AWS::Region'
+      AwsUrlSuffix: !Ref 'AWS::URLSuffix'
       TargetSecretArn: !Ref InputJsonSecret
       RDSPasswordSecretArn: !Ref RDSPassword
       PlatformSecretArn: !Ref PlatformSecret
@@ -894,6 +965,16 @@ Resources:
       PrivateSubnetIDs: !Join [",", !Ref PrivateSubnetIDs]
       ExtraConfigKeys: !Ref ExtraConfigKeys
       SelfSignedCertificateValidity: !Ref SelfSignedCertificateValidity
+      SharedStorageBucket: !If [UsingSharedBucket, !GetAtt ExternalStorageStack.Outputs.SharedStorageBucket, '']
+      PlatformStorageBucket: !If [NotUsingSharedBucket, !GetAtt ExternalStorageStack.Outputs.PlatformStorageBucket, '']
+      OrchestratorStorageBucket: !If [DeployOrchestratorStorageBucket, !GetAtt ExternalStorageStack.Outputs.OrchestratorStorageBucket, '']
+      AppsStorageBucket: !If [DeployAppsStorageBucket, !GetAtt ExternalStorageStack.Outputs.AppsStorageBucket, '']
+      TestManagerStorageBucket: !If [DeployTestManagerStorageBucket, !GetAtt ExternalStorageStack.Outputs.TestManagerStorageBucket, '']
+      DataServiceStorageBucket: !If [DeployDataServiceStorageBucket, !GetAtt ExternalStorageStack.Outputs.DataServiceStorageBucket, '']
+      AiCenterStorageBucket: !If [DeployAiCenterStorageBucket, !GetAtt ExternalStorageStack.Outputs.AiCenterStorageBucket, '']
+      DocumentUnderstandingStorageBucket: !If [DeployDocumentUnderstandingStorageBucket, !GetAtt ExternalStorageStack.Outputs.DocumentUnderstandingStorageBucket, '']
+      TaskMiningStorageBucket: !If [DeployTaskMiningStorageBucket, !GetAtt ExternalStorageStack.Outputs.TaskMiningStorageBucket, '']
+      ProcessMiningStorageBucket: !If [DeployProcessMiningStorageBucket, !GetAtt ExternalStorageStack.Outputs.ProcessMiningStorageBucket, '']
 
   ComputeResourceSizeLambdaRole:
     Type: 'AWS::IAM::Role'

@@ -31,7 +31,7 @@ function main() {
   local cluster_disk
   local etcd_disk
   local as_robots_caching_disk=""
-  local ceph_disk
+  local ceph_disk=""
   lsblk
   systemctl daemon-reload
   root_dev=$(lsblk -d | grep "nvme0n1" | awk '{print $1}')
@@ -72,19 +72,19 @@ function main() {
         echo "SSD device name /dev/${crt_dev} found"
         case "${crt_dev}" in
           xvdb)
-          data_disk="/dev/xvdb"
+          data_disk="/dev/${crt_dev}"
           ;;
           xvdc)
-          etcd_disk="/dev/xvdc"
+          etcd_disk="/dev/${crt_dev}"
           ;;
           xvdd)
-          cluster_disk="/dev/xvdd"
+          cluster_disk="/dev/${crt_dev}"
           ;;
           xvde)
-          as_robots_caching_disk="/dev/xvde"
+          as_robots_caching_disk="/dev/${crt_dev}"
           ;;
           xvdf)
-          ceph_disk="/dev/xvde"
+          ceph_disk="/dev/${crt_dev}"
           ;;
         esac
       fi
@@ -117,10 +117,13 @@ function main() {
                                               --etcd-disk-name "${etcd_disk}" \
                                               --data-disk-name "${data_disk}"
     fi
-    echo "Configuring ceph disk"
-    /root/installer/configureUiPathDisks.sh --node-type server \
-                                            --install-type online \
-                                            --ceph-raw-disk-name "$ceph_disk"
+    # Configure ceph disk if present on machine
+    if [[ -n "${ceph_disk}" ]]; then
+      echo "Configuring ceph disk"
+      /root/installer/configureUiPathDisks.sh --node-type server \
+                                              --install-type online \
+                                              --ceph-raw-disk-name "$ceph_disk"
+    fi
   fi
   # Configure asrobots extra caching disk if present on machine
   if [[ -n "${as_robots_caching_disk}" ]]; then
